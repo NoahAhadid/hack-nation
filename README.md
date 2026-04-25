@@ -50,6 +50,12 @@ Import the ESCO skills CSV:
 npm run import:skills
 ```
 
+Import the ESCO occupations and skill-to-occupation relation CSVs:
+
+```bash
+npm run import:occupations
+```
+
 Test semantic search:
 
 ```bash
@@ -90,6 +96,7 @@ Fill `web/.env.local` with `OPENAI_API_KEY`. The Supabase URL and publishable ke
 ## Useful Options
 
 - `IMPORT_LIMIT=1000 npm run import:skills` imports a smaller test sample.
+- `IMPORT_LIMIT=1000 npm run import:occupations` imports a smaller occupation/relation sample.
 - `MATCH_COUNT=20 npm run search -- "your query"` returns more matches.
 - `EMBEDDING_BATCH_SIZE=50` lowers OpenAI request batch size if needed.
 - `UPSERT_BATCH_SIZE=50` lowers Supabase write batch size if needed.
@@ -98,8 +105,13 @@ Fill `web/.env.local` with `OPENAI_API_KEY`. The Supabase URL and publishable ke
 
 The main table is `public.esco_skills`.
 
-The search RPC is:
+The main occupation tables are `public.esco_occupations` and `public.esco_occupation_skill_relations`.
+
+The search RPCs are:
 
 ```sql
 public.match_esco_skills(query_embedding vector(1536), match_count int)
+public.find_esco_skills_by_label(skill_label text)
+public.suggest_esco_skills_by_label(skill_label text, match_count int)
+public.get_esco_occupations_for_skills(skill_uris text[])
 ```
