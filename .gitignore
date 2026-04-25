@@ -1,0 +1,11 @@
+node_modules/
+.env
+.DS_Store
+
+# Local datasets and generated data
+ESCO dataset - v1.2.1 - classification - en - csv/
+data/
+*.csv
+*.tsv
+*.sqlite
+*.db
