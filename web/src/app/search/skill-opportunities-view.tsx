@@ -151,10 +151,6 @@ function formatTrendDelta(value: number | undefined) {
   })}`;
 }
 
-function formatRealismLevel(level: string) {
-  return level.replace(/_/g, " ");
-}
-
 export function SkillOpportunitiesView({
   currentProfile,
   selectedOpportunityConfig,
@@ -312,16 +308,12 @@ export function SkillOpportunitiesView({
       buildFinalConsiderationsLlmInput({
         surveyData,
         currentProfile,
-        selectedOpportunityConfig,
-        localOpportunities: localMatches,
         trendLookups,
         educationLookups: eduTrendLookups,
       }),
     [
       currentProfile,
       eduTrendLookups,
-      localMatches,
-      selectedOpportunityConfig,
       surveyData,
       trendLookups,
     ],
@@ -472,7 +464,7 @@ export function SkillOpportunitiesView({
     setFinalConsiderations(null);
     setFinalConsiderationsError("");
 
-    if (localMatches.length === 0) {
+    if (topJobs.length === 0) {
       setFinalConsiderationsStatus("idle");
       return () => { abortController.abort(); };
     }
@@ -498,8 +490,6 @@ export function SkillOpportunitiesView({
       body: JSON.stringify({
         surveyData,
         currentProfile,
-        selectedOpportunityConfig,
-        localOpportunities: localMatches,
         trendLookups,
         educationLookups: eduTrendLookups,
       }),
@@ -537,13 +527,9 @@ export function SkillOpportunitiesView({
     return () => { abortController.abort(); };
   }, [
     currentProfile,
-    eduTrendJobs.length,
     eduTrendLookups,
-    localMatches,
-    selectedOpportunityConfig,
     surveyData,
-    topTrendJobs.length,
-    trendLocation,
+    topJobs.length,
     trendLookups,
   ]);
 
@@ -1150,12 +1136,10 @@ export function SkillOpportunitiesView({
             </summary>
             <div className="grid gap-3 border-t border-zinc-200 px-4 py-4">
               <div className="rounded border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm leading-6 text-cyan-950">
-                The Conversational Skill Discovery Engine sends the accepted
-                user profile, Step 1 local matches, Step 2 & 3 ISCO trend data
-                to an LLM for a realism check. The reviewer is prompted to
-                consider LMIC constraints such as connectivity, transport,
-                informal hiring, training access, startup costs, credentials,
-                and thin local data.
+                The engine sends accepted skills, best-fitting jobs, employment
+                trends, and education data to an LLM which analyses whether each
+                occupation is realistic for this person — with strong emphasis on
+                location relevance.
               </div>
 
               <div className="rounded-md border border-zinc-200 bg-zinc-950 px-3 py-3 text-zinc-50">
@@ -1174,7 +1158,7 @@ export function SkillOpportunitiesView({
 
               {finalConsiderationsStatus === "loading" ? (
                 <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-4 text-sm text-zinc-500">
-                  Asking the LLM to review opportunity realism.
+                  Analysing each occupation for this person and location&hellip;
                 </div>
               ) : finalConsiderationsStatus === "error" ? (
                 <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950">
@@ -1182,102 +1166,102 @@ export function SkillOpportunitiesView({
                 </div>
               ) : finalConsiderations ? (
                 <div className="grid gap-3">
-                  <article className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                      Overall realism check
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-700">
-                      {finalConsiderations.overallAssessment}
-                    </p>
-                  </article>
-
-                  <div className="grid gap-3 lg:grid-cols-2">
-                    <article className="rounded-md border border-zinc-200 bg-white px-3 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                        LMIC cautions
-                      </p>
-                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700">
-                        {finalConsiderations.lmicsCautions.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </article>
-                    <article className="rounded-md border border-zinc-200 bg-white px-3 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                        Data gaps to verify
-                      </p>
-                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700">
-                        {finalConsiderations.dataGaps.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </article>
-                  </div>
-
-                  <div className="grid gap-3">
-                    {finalConsiderations.reviews.map((review) => (
+                  {finalConsiderations.occupationAnalyses.map((analysis) => {
+                    const verdictColor =
+                      analysis.verdict === "recommended"
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                        : analysis.verdict === "possible"
+                          ? "border-amber-300 bg-amber-50 text-amber-900"
+                          : "border-red-300 bg-red-50 text-red-900";
+                    const verdictLabel =
+                      analysis.verdict === "recommended"
+                        ? "Recommended"
+                        : analysis.verdict === "possible"
+                          ? "Possible"
+                          : "Not recommended";
+                    return (
                       <article
-                        key={review.opportunityId}
-                        className="rounded-md border border-zinc-200 bg-white px-3 py-3"
+                        key={`${analysis.occupationLabel}-${analysis.iscoGroup}`}
+                        className="rounded-md border border-zinc-200 bg-white px-4 py-4"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                              Opportunity realism
-                            </p>
-                            <h4 className="mt-1 font-semibold text-zinc-950">
-                              {review.title}
+                            <h4 className="font-semibold text-zinc-950">
+                              {analysis.occupationLabel}
                             </h4>
+                            {analysis.iscoGroup ? (
+                              <p className="mt-0.5 text-xs text-zinc-500">
+                                ISCO {analysis.iscoGroup}
+                              </p>
+                            ) : null}
                           </div>
-                          <span className="rounded border border-cyan-200 bg-cyan-50 px-2 py-1 text-xs font-semibold capitalize text-cyan-900">
-                            {formatRealismLevel(review.realismLevel)}
+                          <span
+                            className={`rounded-full border px-3 py-1 text-xs font-semibold ${verdictColor}`}
+                          >
+                            {verdictLabel}
                           </span>
                         </div>
-                        <p className="mt-2 text-sm leading-6 text-zinc-700">
-                          {review.summary}
+                        <p className="mt-3 text-sm leading-6 text-zinc-700">
+                          {analysis.verdictReason}
                         </p>
-                        <div className="mt-3 grid gap-2 md:grid-cols-2">
-                          <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2">
-                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900">
-                              Supporting signals
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                          <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                              Location relevance
                             </p>
-                            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm leading-6 text-emerald-950">
-                              {review.supportingSignals.map((item) => (
-                                <li key={item}>{item}</li>
+                            <p className="mt-1 text-sm leading-5 text-zinc-700">
+                              {analysis.locationRelevance}
+                            </p>
+                          </div>
+                          <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                              Employment trend
+                            </p>
+                            <p className="mt-1 text-sm leading-5 text-zinc-700">
+                              {analysis.trendSummary}
+                            </p>
+                          </div>
+                          <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                              Education fit
+                            </p>
+                            <p className="mt-1 text-sm leading-5 text-zinc-700">
+                              {analysis.educationFit}
+                            </p>
+                          </div>
+                        </div>
+                        {analysis.skillGaps.length > 0 ? (
+                          <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-900">
+                              Skill gaps
+                            </p>
+                            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm leading-6 text-amber-950">
+                              {analysis.skillGaps.map((gap) => (
+                                <li key={gap}>{gap}</li>
                               ))}
                             </ul>
                           </div>
-                          <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2">
-                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-900">
-                              Risks and location challenges
+                        ) : null}
+                        {analysis.actionableNextSteps.length > 0 ? (
+                          <div className="mt-3 rounded border border-cyan-200 bg-cyan-50 px-3 py-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-900">
+                              Next steps
                             </p>
-                            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm leading-6 text-amber-950">
-                              {[...review.risks, ...review.locationChallenges].map(
-                                (item) => (
-                                  <li key={item}>{item}</li>
-                                ),
-                              )}
+                            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm leading-6 text-cyan-950">
+                              {analysis.actionableNextSteps.map((step) => (
+                                <li key={step}>{step}</li>
+                              ))}
                             </ul>
                           </div>
-                        </div>
-                        <div className="mt-3 rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
-                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                            Next checks
-                          </p>
-                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-700">
-                            {review.nextChecks.map((item) => (
-                              <li key={item}>{item}</li>
-                            ))}
-                          </ul>
-                        </div>
+                        ) : null}
                       </article>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-4 text-sm text-zinc-500">
-                  Final considerations will run after the opportunity matches
-                  and trend analysis are ready.
+                  Final considerations will run after the trend analysis is
+                  ready.
                 </div>
               )}
             </div>
@@ -1285,13 +1269,30 @@ export function SkillOpportunitiesView({
         </section>
       </details>
 
-      <OpportunityDashboard
-        identifiedSkills={acceptedSkills}
-        localMatches={localMatches}
-        selectedOpportunityConfig={selectedOpportunityConfig}
-        surveyData={surveyData}
-        topJobs={topJobs}
-      />
+      {finalConsiderationsStatus === "ready" && finalConsiderations ? (
+        <OpportunityDashboard
+          identifiedSkills={acceptedSkills}
+          localMatches={localMatches}
+          selectedOpportunityConfig={selectedOpportunityConfig}
+          surveyData={surveyData}
+          topJobs={topJobs}
+          finalConsiderations={finalConsiderations}
+        />
+      ) : (
+        <div className="flex flex-col items-center justify-center gap-4 rounded-md border border-zinc-200 bg-white px-6 py-16 shadow-sm">
+          <span className="inline-block h-8 w-8 animate-spin rounded-full border-[3px] border-zinc-200 border-t-cyan-600" />
+          <p className="text-sm font-medium text-zinc-600">
+            {finalConsiderationsStatus === "error"
+              ? "Something went wrong while analysing opportunities."
+              : "Analysing your opportunities — checking job trends, education fit, and location relevance\u2026"}
+          </p>
+          {finalConsiderationsStatus === "error" && finalConsiderationsError ? (
+            <p className="max-w-md text-center text-xs text-amber-700">
+              {finalConsiderationsError}
+            </p>
+          ) : null}
+        </div>
+      )}
     </section>
   );
 }

@@ -6,6 +6,7 @@ import type {
   IdentifiedSkill,
   LocalOpportunityMatch,
   OccupationPath,
+  OpportunityFinalConsiderations,
   OpportunityProtocolConfig,
   SurveyData,
 } from "./types";
@@ -17,6 +18,7 @@ type OpportunityDashboardProps = {
   selectedOpportunityConfig: OpportunityProtocolConfig;
   surveyData: SurveyData;
   topJobs: OccupationPath[];
+  finalConsiderations: OpportunityFinalConsiderations;
 };
 
 function signalLabel(key: string) {
@@ -59,6 +61,7 @@ export function OpportunityDashboard({
   selectedOpportunityConfig,
   surveyData,
   topJobs,
+  finalConsiderations,
 }: OpportunityDashboardProps) {
   const localMatches =
     providedLocalMatches ??
@@ -84,7 +87,7 @@ export function OpportunityDashboard({
           Recommended opportunities
         </p>
         <h3 className="mt-1 text-xl font-semibold text-zinc-950">
-          Final recommendations for {selectedOpportunityConfig.region}
+          Final YOUR occupation opportunities
         </h3>
         {identifiedSkills.length > 0 ? (
           <p className="mt-2 text-sm text-zinc-600">
@@ -98,6 +101,126 @@ export function OpportunityDashboard({
             {surveyData.location ? `, location: ${surveyData.location}` : ""}
           </p>
         ) : null}
+      </div>
+
+      {/* Per-occupation verdict cards from final considerations */}
+      <div className="grid gap-3 border-b border-zinc-200 px-4 py-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+          Occupation analysis for your location
+        </p>
+        {finalConsiderations.occupationAnalyses.map((analysis) => {
+          const verdictColor =
+            analysis.verdict === "recommended"
+              ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+              : analysis.verdict === "possible"
+                ? "border-amber-300 bg-amber-50 text-amber-900"
+                : "border-red-300 bg-red-50 text-red-900";
+          const verdictLabel =
+            analysis.verdict === "recommended"
+              ? "Recommended"
+              : analysis.verdict === "possible"
+                ? "Possible"
+                : "Not recommended";
+          // Find the matching occupation path to get required skills
+          const matchingJob = topJobs.find(
+            (job) =>
+              job.preferred_label.toLowerCase() ===
+              analysis.occupationLabel.toLowerCase(),
+          );
+          const requiredSkills = matchingJob?.required_skills ?? [];
+          const hasCount = requiredSkills.filter((s) => s.person_has).length;
+          return (
+            <article
+              key={`${analysis.occupationLabel}-${analysis.iscoGroup}`}
+              className="rounded-lg border border-zinc-200 bg-white px-4 py-4 shadow-sm"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h4 className="font-semibold text-zinc-950">
+                    {analysis.occupationLabel}
+                  </h4>
+                  {analysis.iscoGroup ? (
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      ISCO {analysis.iscoGroup}
+                    </p>
+                  ) : null}
+                </div>
+                <span
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${verdictColor}`}
+                >
+                  {verdictLabel}
+                </span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-zinc-700">
+                {analysis.verdictReason}
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                    Location relevance
+                  </p>
+                  <p className="mt-1 text-sm leading-5 text-zinc-700">
+                    {analysis.locationRelevance}
+                  </p>
+                </div>
+                <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                    Employment trend
+                  </p>
+                  <p className="mt-1 text-sm leading-5 text-zinc-700">
+                    {analysis.trendSummary}
+                  </p>
+                </div>
+                <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                    Education fit
+                  </p>
+                  <p className="mt-1 text-sm leading-5 text-zinc-700">
+                    {analysis.educationFit}
+                  </p>
+                </div>
+              </div>
+
+              {/* Required skills for this occupation */}
+              {requiredSkills.length > 0 ? (
+                <div className="mt-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                    Required skills ({hasCount}/{requiredSkills.length} you
+                    have)
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {requiredSkills.map((skill) => (
+                      <span
+                        key={skill.skill_uri}
+                        className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                          skill.person_has
+                            ? "border-emerald-300 bg-emerald-100 text-emerald-900"
+                            : "border-zinc-300 bg-zinc-100 text-zinc-600"
+                        }`}
+                      >
+                        {skill.person_has ? "✓ " : "○ "}
+                        {skill.skill_label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {analysis.actionableNextSteps.length > 0 ? (
+                <div className="mt-3 rounded border border-cyan-200 bg-cyan-50 px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-900">
+                    Next steps
+                  </p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm leading-6 text-cyan-950">
+                    {analysis.actionableNextSteps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
       </div>
 
       <ol className="divide-y divide-zinc-200">
