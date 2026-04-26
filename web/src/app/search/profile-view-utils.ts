@@ -7,20 +7,18 @@ export function identifiedSkillsForProfile(
   return (
     currentProfile.identified_skills ??
     currentProfile.grounding_trace.flatMap((trace) => {
-      const bestCandidate = trace.top_skill_candidates[0];
-      if (!bestCandidate) return [];
+      const topCandidates = trace.top_skill_candidates.slice(0, 2);
+      if (topCandidates.length === 0) return [];
 
-      return [
-        {
-          concept_uri: bestCandidate.concept_uri,
-          preferred_label: bestCandidate.preferred_label,
-          user_skill: trace.extracted_skill || "Extracted skill",
-          evidence_quote: trace.evidence_quote,
-          database_query: trace.database_query,
-          similarity: bestCandidate.similarity,
-          confidence: skillConfidenceFromSimilarity(bestCandidate.similarity),
-        },
-      ];
+      return topCandidates.map((candidate) => ({
+        concept_uri: candidate.concept_uri,
+        preferred_label: candidate.preferred_label,
+        user_skill: trace.extracted_skill || "Extracted skill",
+        evidence_quote: trace.evidence_quote,
+        database_query: trace.database_query,
+        similarity: candidate.similarity,
+        confidence: skillConfidenceFromSimilarity(candidate.similarity),
+      }));
     })
   );
 }

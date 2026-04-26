@@ -571,7 +571,6 @@ export async function POST(request: Request) {
   }
 
   const acceptedSkillUris = groundedSkills
-    .slice(0, 8)
     .map((skill) => skill.concept_uri);
   const personSkillUris = new Set(acceptedSkillUris);
   const skillSimilarityByUri = new Map(

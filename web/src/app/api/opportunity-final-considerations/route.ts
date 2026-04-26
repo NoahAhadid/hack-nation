@@ -121,6 +121,7 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
     surveyData?: SurveyData;
     currentProfile?: SkillProfile;
+    acceptedSkills?: Array<{ preferred_label: string; user_skill: string; confidence: string }>;
     trendLookups?: FinalConsiderationsTrendInput[];
     educationLookups?: FinalConsiderationsEducationInput[];
   } | null;
@@ -145,6 +146,7 @@ export async function POST(request: Request) {
   const promptPayload = buildFinalConsiderationsLlmInput({
     surveyData: body?.surveyData,
     currentProfile: profile,
+    acceptedSkills: body?.acceptedSkills,
     trendLookups: body?.trendLookups,
     educationLookups: body?.educationLookups,
   });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { ExternalLink } from "lucide-react";
 
 import type {
   IdentifiedSkill,
@@ -104,17 +105,34 @@ export function OpportunityDashboard({
       </div>
 
       {/* Per-occupation verdict cards from final considerations */}
-      <div className="grid gap-3 border-b border-zinc-200 px-4 py-4">
+      <div className="grid gap-4 px-4 py-5">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
           Occupation analysis for your location
         </p>
-        {finalConsiderations.occupationAnalyses.map((analysis) => {
-          const verdictColor =
+        {[...finalConsiderations.occupationAnalyses]
+          .sort((a, b) => {
+            const order = { recommended: 0, possible: 1, not_recommended: 2 };
+            return (order[a.verdict] ?? 3) - (order[b.verdict] ?? 3);
+          })
+          .map((analysis, idx) => {
+          const verdictBorder =
             analysis.verdict === "recommended"
-              ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+              ? "border-l-emerald-500"
               : analysis.verdict === "possible"
-                ? "border-amber-300 bg-amber-50 text-amber-900"
-                : "border-red-300 bg-red-50 text-red-900";
+                ? "border-l-amber-500"
+                : "border-l-red-500";
+          const verdictBadge =
+            analysis.verdict === "recommended"
+              ? "bg-emerald-600 text-white"
+              : analysis.verdict === "possible"
+                ? "bg-amber-500 text-white"
+                : "bg-red-500 text-white";
+          const verdictIcon =
+            analysis.verdict === "recommended"
+              ? "✓"
+              : analysis.verdict === "possible"
+                ? "~"
+                : "✗";
           const verdictLabel =
             analysis.verdict === "recommended"
               ? "Recommended"
@@ -129,95 +147,181 @@ export function OpportunityDashboard({
           );
           const requiredSkills = matchingJob?.required_skills ?? [];
           const hasCount = requiredSkills.filter((s) => s.person_has).length;
+          const coveragePct =
+            requiredSkills.length > 0
+              ? Math.round((hasCount / requiredSkills.length) * 100)
+              : 0;
+          const escoHref = matchingJob?.occupation_uri?.startsWith("http")
+            ? matchingJob.occupation_uri
+            : null;
           return (
             <article
               key={`${analysis.occupationLabel}-${analysis.iscoGroup}`}
-              className="rounded-lg border border-zinc-200 bg-white px-4 py-4 shadow-sm"
+              className={`overflow-hidden rounded-xl border border-l-4 border-zinc-200 bg-white shadow-md transition-shadow hover:shadow-lg ${verdictBorder}`}
             >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h4 className="font-semibold text-zinc-950">
-                    {analysis.occupationLabel}
-                  </h4>
-                  {analysis.iscoGroup ? (
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      ISCO {analysis.iscoGroup}
-                    </p>
-                  ) : null}
-                </div>
-                <span
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${verdictColor}`}
-                >
-                  {verdictLabel}
-                </span>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-zinc-700">
-                {analysis.verdictReason}
-              </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
-                    Location relevance
-                  </p>
-                  <p className="mt-1 text-sm leading-5 text-zinc-700">
-                    {analysis.locationRelevance}
-                  </p>
-                </div>
-                <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
-                    Employment trend
-                  </p>
-                  <p className="mt-1 text-sm leading-5 text-zinc-700">
-                    {analysis.trendSummary}
-                  </p>
-                </div>
-                <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
-                    Education fit
-                  </p>
-                  <p className="mt-1 text-sm leading-5 text-zinc-700">
-                    {analysis.educationFit}
-                  </p>
-                </div>
-              </div>
-
-              {/* Required skills for this occupation */}
-              {requiredSkills.length > 0 ? (
-                <div className="mt-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                    Required skills ({hasCount}/{requiredSkills.length} you
-                    have)
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {requiredSkills.map((skill) => (
-                      <span
-                        key={skill.skill_uri}
-                        className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-                          skill.person_has
-                            ? "border-emerald-300 bg-emerald-100 text-emerald-900"
-                            : "border-zinc-300 bg-zinc-100 text-zinc-600"
-                        }`}
-                      >
-                        {skill.person_has ? "✓ " : "○ "}
-                        {skill.skill_label}
-                      </span>
-                    ))}
+              {/* Card header with gradient */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-zinc-50 to-white px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-lg font-bold text-zinc-400">
+                    {idx + 1}
+                  </span>
+                  <div>
+                    <h4 className="text-lg font-semibold text-zinc-950">
+                      {escoHref ? (
+                        <a
+                          href={escoHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 underline decoration-zinc-300 underline-offset-4 transition hover:text-cyan-700 hover:decoration-cyan-500"
+                        >
+                          {analysis.occupationLabel}
+                          <ExternalLink
+                            aria-hidden="true"
+                            className="h-4 w-4 shrink-0"
+                          />
+                        </a>
+                      ) : (
+                        analysis.occupationLabel
+                      )}
+                    </h4>
+                    {analysis.iscoGroup ? (
+                      <p className="mt-0.5 text-xs text-zinc-400">
+                        ISCO {analysis.iscoGroup}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
-              ) : null}
+                <span
+                  className={`rounded-full px-3.5 py-1.5 text-xs font-bold shadow-sm ${verdictBadge}`}
+                >
+                  {verdictIcon} {verdictLabel}
+                </span>
+              </div>
 
-              {analysis.actionableNextSteps.length > 0 ? (
-                <div className="mt-3 rounded border border-cyan-200 bg-cyan-50 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-900">
-                    Next steps
-                  </p>
-                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm leading-6 text-cyan-950">
-                    {analysis.actionableNextSteps.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
-                  </ul>
+              {/* Body */}
+              <div className="px-5 pb-5 pt-3">
+                <p className="text-sm leading-6 text-zinc-700">
+                  {analysis.verdictReason}
+                </p>
+
+                {/* Info grid with icons */}
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-lg border border-zinc-100 bg-gradient-to-b from-white to-zinc-50 px-3 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-sky-100 text-xs">
+                        📍
+                      </span>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                        Location
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm leading-5 text-zinc-700">
+                      {analysis.locationRelevance}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-zinc-100 bg-gradient-to-b from-white to-zinc-50 px-3 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-cyan-100 text-xs">
+                        📈
+                      </span>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                        Trend
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm leading-5 text-zinc-700">
+                      {analysis.trendSummary}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-zinc-100 bg-gradient-to-b from-white to-zinc-50 px-3 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-violet-100 text-xs">
+                        🎓
+                      </span>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+                        Education
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm leading-5 text-zinc-700">
+                      {analysis.educationFit}
+                    </p>
+                  </div>
                 </div>
-              ) : null}
+
+                {/* Skills coverage bar + pills */}
+                {requiredSkills.length > 0 ? (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                        Skill coverage
+                      </p>
+                      <p className="text-sm font-bold text-zinc-700">
+                        {hasCount}
+                        <span className="text-zinc-400">
+                          /{requiredSkills.length}
+                        </span>
+                        <span className="ml-1.5 text-xs font-medium text-zinc-400">
+                          ({coveragePct}%)
+                        </span>
+                      </p>
+                    </div>
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-100">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          coveragePct >= 70
+                            ? "bg-emerald-500"
+                            : coveragePct >= 40
+                              ? "bg-amber-400"
+                              : "bg-red-400"
+                        }`}
+                        style={{ width: `${coveragePct}%` }}
+                      />
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {requiredSkills
+                        .slice()
+                        .sort((a, b) =>
+                          a.person_has === b.person_has
+                            ? 0
+                            : a.person_has
+                              ? -1
+                              : 1,
+                        )
+                        .map((skill) => (
+                          <span
+                            key={skill.skill_uri}
+                            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                              skill.person_has
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                : "border-zinc-200 bg-zinc-50 text-zinc-500"
+                            }`}
+                          >
+                            {skill.person_has ? "✓ " : "○ "}
+                            {skill.skill_label}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Next steps */}
+                {analysis.actionableNextSteps.length > 0 ? (
+                  <div className="mt-4 rounded-lg border border-cyan-100 bg-gradient-to-r from-cyan-50 to-sky-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-800">
+                      Next steps
+                    </p>
+                    <ul className="mt-2 space-y-2 text-sm leading-6 text-cyan-950">
+                      {analysis.actionableNextSteps.map((step, i) => (
+                        <li key={step} className="flex items-start gap-2">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-200 text-[10px] font-bold text-cyan-800">
+                            {i + 1}
+                          </span>
+                          <span>{step}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
             </article>
           );
         })}

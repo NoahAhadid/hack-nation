@@ -9,7 +9,6 @@
   --muted: #675c50;
   --card: #fffaf4;
   --gold: #c98c3e;
-  --border: #d8cabe;
 }
 
 @theme inline {
@@ -21,7 +20,6 @@
   --color-muted: var(--muted);
   --color-card: var(--card);
   --color-gold: var(--gold);
-  --color-border: var(--border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 
 import {
   amaraDemoMessages,
@@ -69,6 +69,10 @@ export function SearchClient({
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
   const [savedProfileId, setSavedProfileId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState("");
+  const hasViewedOpportunities = useRef(false);
+  if (viewPhase === "opportunities") {
+    hasViewedOpportunities.current = true;
+  }
 
   const selectedOpportunityConfig =
     initialOpportunityProtocols.find(
@@ -383,6 +387,7 @@ export function SearchClient({
     setSurveyData(emptySurveyData);
     setProfileMessages([{ role: "assistant", content: firstSurveyPrompt }]);
     setProfileInput("");
+    hasViewedOpportunities.current = false;
   }
 
   function handleJourneyNavigate(step: JourneyStep) {
@@ -558,16 +563,18 @@ export function SearchClient({
                 onViewProfileJson={viewProfileJson}
               />
             ) : null}
-            {viewPhase === "opportunities" && profile ? (
-              <SkillOpportunitiesView
-                currentProfile={profile}
-                selectedOpportunityConfig={selectedOpportunityConfig}
-                skillDecisions={skillDecisions}
-                surveyData={surveyData}
-                onSaveOpportunities={(opportunities) =>
-                  void saveOpportunitiesToSupabase(opportunities)
-                }
-              />
+            {hasViewedOpportunities.current && profile ? (
+              <div style={{ display: viewPhase === "opportunities" ? undefined : "none" }}>
+                <SkillOpportunitiesView
+                  currentProfile={profile}
+                  selectedOpportunityConfig={selectedOpportunityConfig}
+                  skillDecisions={skillDecisions}
+                  surveyData={surveyData}
+                  onSaveOpportunities={(opportunities) =>
+                    void saveOpportunitiesToSupabase(opportunities)
+                  }
+                />
+              </div>
             ) : null}
             {viewPhase === "loading" ? (
               <LoadingScreen

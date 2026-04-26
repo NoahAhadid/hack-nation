@@ -548,12 +548,13 @@ function compactEducation(lookup: FinalConsiderationsEducationInput) {
 export function buildFinalConsiderationsLlmInput(input: {
   surveyData?: SurveyData;
   currentProfile?: SkillProfile;
+  acceptedSkills?: Array<{ preferred_label: string; user_skill: string; confidence: string }>;
   selectedOpportunityConfig?: OpportunityProtocolConfig;
   localOpportunities?: LocalOpportunityMatch[];
   trendLookups?: FinalConsiderationsTrendInput[];
   educationLookups?: FinalConsiderationsEducationInput[];
 }) {
-  const acceptedSkills = (input.currentProfile?.identified_skills ?? []).map(
+  const acceptedSkills = (input.acceptedSkills ?? input.currentProfile?.identified_skills ?? []).map(
     (skill) => ({
       label: skill.preferred_label,
       userSkill: skill.user_skill,
@@ -562,7 +563,6 @@ export function buildFinalConsiderationsLlmInput(input: {
   );
 
   const bestFittingJobs = input.currentProfile?.occupation_paths
-    .slice(0, 5)
     .map((path) => ({
       label: path.preferred_label,
       iscoGroup: path.iscoGroup ?? path.isco_group,

@@ -196,7 +196,6 @@ export function SkillOpportunitiesView({
   const topTrendJobs = useMemo(
     () =>
       topJobs
-        .slice(0, 3)
         .map((path) => ({
           path,
           majorCode: iscoMajorCodeForPath(path),
@@ -490,6 +489,11 @@ export function SkillOpportunitiesView({
       body: JSON.stringify({
         surveyData,
         currentProfile,
+        acceptedSkills: acceptedSkills.map((s) => ({
+          preferred_label: s.preferred_label,
+          user_skill: s.user_skill,
+          confidence: s.confidence,
+        })),
         trendLookups,
         educationLookups: eduTrendLookups,
       }),
@@ -526,6 +530,7 @@ export function SkillOpportunitiesView({
 
     return () => { abortController.abort(); };
   }, [
+    acceptedSkills,
     currentProfile,
     eduTrendLookups,
     surveyData,
