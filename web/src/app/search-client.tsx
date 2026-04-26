@@ -3094,30 +3094,42 @@ export function SearchClient({
 
     return (
       <section className="grid gap-5">
+        <div className="rounded-md border border-cyan-200 bg-cyan-50 shadow-sm">
+          <div className="px-4 py-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-800">
+                How this view works
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-normal text-zinc-950">
+                Turning the accepted skill profile into opportunity routes
+              </h2>
+              <p className="mt-2 max-w-4xl text-sm leading-6 text-cyan-950">
+                This view takes only the ESCO skills the user accepted, compares
+                them with the active local opportunity protocol, and shows why
+                each route may fit. The first section blends local labor-market
+                signals, training pathways, and stakeholder weights; the second
+                section shows the ESCO jobs whose required skills overlap with
+                the accepted profile.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <details className="rounded-md border border-zinc-300 bg-white shadow-sm">
           <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-950">
             See the system work
           </summary>
           <section className="grid gap-3 border-t border-zinc-200 bg-zinc-50 p-3">
-            <article className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-sm">
-              <div className="border-b border-zinc-200 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
-                  Opportunity matches
-                </p>
-                <h3 className="mt-1 text-xl font-semibold text-zinc-950">
-                  Best fitting ESCO jobs
-                </h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-600">
-                  Jobs are ranked by overlap between the accepted skill profile
-                  and each occupation&apos;s ESCO skill requirements.
-                </p>
-              </div>
+            <details className="rounded-md border border-zinc-300 bg-white shadow-sm">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-950">
+                Step 1: opportunity matches
+              </summary>
               {topJobs.length === 0 ? (
-                <div className="px-4 py-10 text-center text-sm text-zinc-500">
+                <div className="border-t border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500">
                   No occupation paths found from the current ESCO matches.
                 </div>
               ) : (
-                <ol className="divide-y divide-zinc-200">
+                <ol className="divide-y divide-zinc-200 border-t border-zinc-200">
                   {topJobs.map((path, index) => {
                     const matchedSkillCount =
                       path.matched_skill_count ??
@@ -3252,30 +3264,15 @@ export function SearchClient({
                   })}
                 </ol>
               )}
-            </article>
+            </details>
+
+            <details className="rounded-md border border-zinc-300 bg-white shadow-sm">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-950">
+                Step 2:
+              </summary>
+            </details>
           </section>
         </details>
-
-        <div className="rounded-md border border-cyan-200 bg-cyan-50 shadow-sm">
-          <div className="px-4 py-5">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-800">
-                How this view works
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-normal text-zinc-950">
-                Turning the accepted skill profile into opportunity routes
-              </h2>
-              <p className="mt-2 max-w-4xl text-sm leading-6 text-cyan-950">
-                This view takes only the ESCO skills the user accepted, compares
-                them with the active local opportunity protocol, and shows why
-                each route may fit. The first section blends local labor-market
-                signals, training pathways, and stakeholder weights; the second
-                section shows the ESCO jobs whose required skills overlap with
-                the accepted profile.
-              </p>
-            </div>
-          </div>
-        </div>
 
         {renderOpportunityDashboard(acceptedSkills, topJobs)}
       </section>
