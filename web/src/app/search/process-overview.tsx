@@ -19,7 +19,7 @@ export function ProcessOverview({
   }> = [
     {
       id: "discovery",
-      title: "Skill discovery engine",
+      title: "Conversational Skill Discovery Engine",
     },
     {
       id: "profile",
@@ -27,7 +27,7 @@ export function ProcessOverview({
     },
     {
       id: "opportunities",
-      title: "Your opportunities",
+      title: "Your Local opportunities",
     },
   ];
   const activeIndex = steps.findIndex((step) => step.id === activeStep);

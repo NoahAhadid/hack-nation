@@ -190,40 +190,6 @@ export function ResultsView({
             )}
           </details>
 
-          <details className="rounded-md border border-zinc-300 bg-white shadow-sm">
-            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-950">
-              Step 4: ranking formula and metadata
-            </summary>
-            <div className="grid gap-4 border-t border-zinc-200 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-              <div>
-                <p className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2 font-mono text-xs text-zinc-700">
-                  rankScore = matchedSkills * 100 + matchedEssentialSkills * 25
-                  + skillCoverage * 10 + matchedSimilarity - relationRank
-                </p>
-                <p className="mt-3 text-sm leading-6 text-zinc-600">
-                  The highest ranked jobs are those where the person already has
-                  the largest share of the occupation&apos;s ESCO skills,
-                  especially essential skills.
-                </p>
-              </div>
-              <div className="rounded border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
-                <p>
-                  <span className="font-semibold text-zinc-950">Engine:</span>{" "}
-                  {currentProfile.export_metadata.engine_version}
-                </p>
-                <p className="mt-2">
-                  <span className="font-semibold text-zinc-950">
-                    Generated:
-                  </span>{" "}
-                  {currentProfile.export_metadata.generated_at}
-                </p>
-                <p className="mt-2">
-                  <span className="font-semibold text-zinc-950">Locale:</span>{" "}
-                  {currentProfile.export_metadata.locale}
-                </p>
-              </div>
-            </div>
-          </details>
         </section>
       </details>
 

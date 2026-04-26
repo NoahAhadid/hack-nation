@@ -1,5 +1,7 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
+
 import { OpportunityDashboard } from "./opportunity-dashboard";
 import { identifiedSkillsForProfile } from "./profile-view-utils";
 import type {
@@ -20,6 +22,21 @@ type SkillOpportunitiesViewProps = {
   skillDecisions: Record<string, SkillDecision>;
   surveyData: SurveyData;
 };
+
+function externalHref(value: string) {
+  return value.startsWith("http://") || value.startsWith("https://")
+    ? value
+    : null;
+}
+
+function iscoMajorCodeForPath(path: SkillProfile["occupation_paths"][number]) {
+  if (path.isco_08_major_code) return path.isco_08_major_code;
+
+  const iscoGroup = path.iscoGroup ?? path.isco_group;
+  const match = iscoGroup?.trim().match(/^\D*(\d)/);
+
+  return match?.[1] ?? null;
+}
 
 export function SkillOpportunitiesView({
   currentProfile,
@@ -72,6 +89,8 @@ export function SkillOpportunitiesView({
             ) : (
               <ol className="divide-y divide-zinc-200 border-t border-zinc-200">
                 {topJobs.map((path, index) => {
+                  const occupationHref = externalHref(path.occupation_uri);
+                  const iscoMajorCode = iscoMajorCodeForPath(path);
                   const matchedSkillCount =
                     path.matched_skill_count ??
                     path.matched_skill_labels.length;
@@ -95,11 +114,42 @@ export function SkillOpportunitiesView({
                       </p>
                       <div className="min-w-0">
                         <h4 className="text-lg font-semibold text-zinc-950">
-                          {path.preferred_label}
+                          {occupationHref ? (
+                            <a
+                              href={occupationHref}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 text-zinc-950 underline decoration-zinc-300 underline-offset-4 transition hover:text-cyan-800 hover:decoration-cyan-600"
+                            >
+                              {path.preferred_label}
+                              <ExternalLink
+                                aria-hidden="true"
+                                className="h-4 w-4 shrink-0"
+                              />
+                            </a>
+                          ) : (
+                            path.preferred_label
+                          )}
                         </h4>
                         <p className="mt-1 break-all text-xs text-zinc-500">
-                          {path.occupation_uri}
+                          {occupationHref ? (
+                            <a
+                              href={occupationHref}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline decoration-zinc-300 underline-offset-2 transition hover:text-cyan-800 hover:decoration-cyan-600"
+                            >
+                              {path.occupation_uri}
+                            </a>
+                          ) : (
+                            path.occupation_uri
+                          )}
                         </p>
+                        {iscoMajorCode ? (
+                          <p className="mt-2 inline-flex rounded border border-cyan-200 bg-cyan-50 px-2 py-1 text-xs font-semibold text-cyan-900">
+                            ISCO-08 major code {iscoMajorCode}
+                          </p>
+                        ) : null}
                         <p className="mt-3 text-sm leading-6 text-zinc-700">
                           {path.explanation}
                         </p>

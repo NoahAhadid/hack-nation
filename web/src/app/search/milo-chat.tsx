@@ -55,7 +55,7 @@ export function MiloChat({
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="text-3xl font-semibold tracking-normal">Milo</h2>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                Skill Discovery Engine
+                Conversational Skill Discovery Engine
               </p>
             </div>
             <span className="rounded border border-cyan-300/40 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100">

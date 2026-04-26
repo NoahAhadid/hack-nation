@@ -91,6 +91,9 @@ type OccupationRequiredSkill = {
 type OccupationPath = {
   occupation_uri: string;
   preferred_label: string;
+  iscoGroup: string | null;
+  isco_group: string | null;
+  isco_08_major_code: string | null;
   relation_types: string[];
   matched_skill_labels: string[];
   required_skills: OccupationRequiredSkill[];
@@ -113,6 +116,12 @@ type OccupationSkillRelation = {
   skill_uri: string;
   skill_label: string | null;
 };
+
+function iscoMajorCode(iscoGroup: string | null | undefined) {
+  const match = iscoGroup?.trim().match(/^\D*(\d)/);
+
+  return match?.[1] ?? null;
+}
 
 const extractionSchema = {
   name: "skill_signal_extraction",
@@ -582,6 +591,8 @@ export async function POST(request: Request) {
     const occupationCandidates = ((data ?? []) as Array<{
       occupation_uri: string;
       preferred_label: string;
+      iscoGroup?: string | null;
+      isco_group: string | null;
       relation_types: string[] | null;
       matched_skill_labels: string[] | null;
       relation_rank: number | null;
@@ -626,6 +637,7 @@ export async function POST(request: Request) {
       occupationPaths.push(
         ...occupationCandidates
           .map((occupation) => {
+            const iscoGroup = occupation.iscoGroup ?? occupation.isco_group;
             const requiredSkills = compactOccupationSkills(
               relationsByOccupation.get(occupation.occupation_uri) ?? [],
               personSkillUris,
@@ -671,6 +683,9 @@ export async function POST(request: Request) {
             return {
               occupation_uri: occupation.occupation_uri,
               preferred_label: occupation.preferred_label,
+              iscoGroup,
+              isco_group: iscoGroup,
+              isco_08_major_code: iscoMajorCode(iscoGroup),
               relation_types: occupation.relation_types ?? [],
               matched_skill_labels: matchedRequiredSkills.map(
                 (skill) => skill.skill_label,

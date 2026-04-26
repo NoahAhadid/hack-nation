@@ -90,6 +90,9 @@ export type OccupationRequiredSkill = {
 export type OccupationPath = {
   occupation_uri: string;
   preferred_label: string;
+  iscoGroup?: string | null;
+  isco_group?: string | null;
+  isco_08_major_code?: string | null;
   relation_types: string[];
   matched_skill_labels: string[];
   required_skills?: OccupationRequiredSkill[];
