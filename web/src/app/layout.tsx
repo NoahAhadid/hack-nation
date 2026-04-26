@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+import { AppHeader } from "@/components/app-header";
+
 export const metadata: Metadata = {
   title: "ESCO Semantic Search",
   description: "Search ESCO skills with OpenAI embeddings and Supabase pgvector.",
@@ -13,7 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full bg-[#f7f8f5] text-foreground">
+        <div className="flex min-h-screen flex-col">
+          <AppHeader />
+          {children}
+        </div>
+      </body>
     </html>
   );
 }

@@ -4,15 +4,17 @@ import Link from "next/link";
 import {
   BarChart3,
   BriefcaseBusiness,
+  Check,
   ClipboardCheck,
   Database,
+  ExternalLink,
   FileJson,
   Hash,
   Layers3,
   Plus,
-  Settings2,
   Sigma,
   Table2,
+  X,
 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 
@@ -151,6 +153,7 @@ type SkillProfile = {
 };
 
 type WorkspacePanel = "profile" | "admin";
+type SkillDecision = "accepted" | "declined";
 
 type SignalWeightKey =
   | "skillFit"
@@ -724,7 +727,7 @@ function promptForMissingFields(data: SurveyData) {
   const missing = missingSurveyFields(data);
 
   if (missing.length === 0) {
-    return "I have the important intake data now. I am building your RouteMap and matching it against ESCO.";
+    return "I have the important intake data now. I am building your Skill Profile and matching it against ESCO.";
   }
 
   return `I still need your ${missing
@@ -824,7 +827,7 @@ function requiredFieldValue(data: SurveyData, field: RequiredSurveyField) {
 function skillConfidenceLabel(confidence: IdentifiedSkill["confidence"]) {
   if (confidence === "strong") return "Strong ESCO fit";
   if (confidence === "medium") return "Good ESCO fit";
-  return "Review fit";
+  return "Possible ESCO fit";
 }
 
 function skillConfidenceFromSimilarity(
@@ -1014,9 +1017,13 @@ function parseCsvHeaderLine(line: string) {
   return columns.filter(Boolean);
 }
 
-export function SearchClient() {
-  const [workspacePanel, setWorkspacePanel] =
-    useState<WorkspacePanel>("profile");
+type SearchClientProps = {
+  workspacePanel?: WorkspacePanel;
+};
+
+export function SearchClient({
+  workspacePanel = "profile",
+}: SearchClientProps = {}) {
   const [opportunityProtocols, setOpportunityProtocols] = useState(
     initialOpportunityProtocols,
   );
@@ -1036,6 +1043,9 @@ export function SearchClient() {
   const [isAnalyzingIntake, setIsAnalyzingIntake] = useState(false);
   const [isGeneratingProfile, setIsGeneratingProfile] = useState(false);
   const [protocolStatus, setProtocolStatus] = useState("");
+  const [skillDecisions, setSkillDecisions] = useState<
+    Record<string, SkillDecision>
+  >({});
   const [showProtocolDefinitionJson, setShowProtocolDefinitionJson] =
     useState(false);
   const [adminCsvFileName, setAdminCsvFileName] = useState("");
@@ -1180,7 +1190,7 @@ export function SearchClient() {
           stage === "extracting" ? "grounding" : stage,
         );
         setProfileStatus(
-          "Milo is grounding the signals against ESCO and building RouteMap.",
+          "Milo is grounding the signals against ESCO and building the Skill Profile.",
         );
       }, 600);
 
@@ -1232,9 +1242,10 @@ export function SearchClient() {
       }
 
       setProfile(payload);
+      setSkillDecisions({});
       setCalculationStage("done");
       setViewPhase("results");
-      setProfileStatus("RouteMap generated.");
+      setProfileStatus("Skill profile generated.");
     } catch (profileError) {
       setProfile(null);
       setCalculationStage("idle");
@@ -1252,6 +1263,7 @@ export function SearchClient() {
 
   function loadAmaraDemo() {
     setProfile(null);
+    setSkillDecisions({});
     setError("");
     setSelectedOpportunityConfigId("ghana-urban-informal");
     setIsAnalyzingIntake(false);
@@ -1262,7 +1274,7 @@ export function SearchClient() {
       ...amaraDemoMessages,
       {
         role: "assistant",
-        content: "I have Amara's core signal. I am building her RouteMap now.",
+        content: "I have Amara's core signal. I am building her Skill Profile now.",
       },
     ]);
     void generateProfile(amaraDemoMessages, amaraSurveyData);
@@ -1418,6 +1430,7 @@ export function SearchClient() {
     setProfile(null);
     setProfileStatus("");
     setError("");
+    setSkillDecisions({});
     setIsAnalyzingIntake(false);
     setIsGeneratingProfile(false);
     setCalculationStage("idle");
@@ -1445,8 +1458,8 @@ export function SearchClient() {
       },
       {
         id: "review",
-        title: "Review RouteMap",
-        description: "See the final skill profile and best fitting jobs.",
+        title: "Skill profile",
+        description: "Accept or decline ESCO skills and see fitting jobs.",
       },
     ];
     const activeIndex = steps.findIndex((step) => step.id === activeStep);
@@ -1458,7 +1471,7 @@ export function SearchClient() {
             User journey
           </p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-950">
-            From unmapped experience to a portable RouteMap
+            From unmapped experience to a portable Skill Profile
           </h2>
         </div>
         <ol className="grid gap-0 md:grid-cols-3">
@@ -3138,15 +3151,13 @@ export function SearchClient() {
                 <ClipboardCheck />
                 Validate protocol
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-9 rounded-md border-zinc-300"
-                onClick={() => setWorkspacePanel("profile")}
+              <Link
+                href="/"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-950 transition hover:bg-zinc-50"
               >
                 <BriefcaseBusiness />
                 Use in youth flow
-              </Button>
+              </Link>
               {protocolStatus ? (
                 <p className="text-sm leading-6 text-zinc-600">
                   {protocolStatus}
@@ -3260,10 +3271,10 @@ export function SearchClient() {
               {isAnalyzingIntake
                 ? "Reading message"
                 : isGeneratingProfile
-                ? "Generating RouteMap"
+                ? "Generating Skill Profile"
                 : surveyMissing.length > 0
                   ? "Waiting for required info"
-                  : "Generate RouteMap"}
+                  : "Generate Skill Profile"}
             </Button>
             <Button
               type="button"
@@ -3311,7 +3322,7 @@ export function SearchClient() {
               </div>
               <p className="mt-2 text-xs leading-5 text-zinc-600">
                 {surveyMissing.length === 0
-                  ? "Ready to generate a RouteMap."
+                  ? "Ready to generate a Skill Profile."
                   : `Still needed: ${surveyMissing
                       .slice(0, 3)
                       .map((field) => requiredFieldLabels[field])
@@ -3378,7 +3389,7 @@ export function SearchClient() {
             Milo is working
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-normal text-zinc-950">
-            Building the RouteMap
+            Building the Skill Profile
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-zinc-600">
             SkillRoute is extracting skill signals, matching them to ESCO, and
@@ -3666,83 +3677,56 @@ export function SearchClient() {
         ];
       });
     const topJobs = currentProfile.occupation_paths;
-    const topJob = topJobs[0];
+    const acceptedSkills = identifiedSkills.filter(
+      (skill) => skillDecisions[skill.concept_uri] !== "declined",
+    );
+    const declinedSkillCount = identifiedSkills.length - acceptedSkills.length;
 
     return (
       <section className="grid gap-5">
-        <div className="rounded-md border border-zinc-300 bg-white shadow-sm">
-          <div className="grid gap-5 px-4 py-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
-                RouteMap
-              </p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-normal text-zinc-950">
-                Opportunity map for {surveyData.location || "this profile"}
-              </h2>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600">
-                Milo converted the conversation into a portable skill profile,
-                grounded it in ESCO, and ranked occupations by skill overlap.
-                The system steps come first as collapsed panels, followed by
-                the final skills and jobs.
-              </p>
+        <div className="rounded-md border border-cyan-200 bg-cyan-50 px-4 py-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-800">
+            Skill Profile
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-normal text-zinc-950">
+            ESCO-grounded skills for {surveyData.location || "this profile"}
+          </h2>
+          <p className="mt-3 max-w-4xl text-sm leading-6 text-cyan-950">
+            ESCO is the European Skills, Competences, Qualifications and
+            Occupations taxonomy. This page turns a person&apos;s informal
+            experience into standardized ESCO skill links, lets the user accept
+            or decline each match, and then uses the accepted profile to explain
+            fitting job and opportunity paths. It is needed because lived
+            experience is often real but hard to compare across training,
+            hiring, and support systems.
+          </p>
+          <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+            <div className="rounded border border-cyan-300 bg-white/70 px-3 py-2">
+              <span className="font-semibold text-zinc-950">
+                {identifiedSkills.length}
+              </span>{" "}
+              best fitting ESCO skills
             </div>
-
-            <div className="grid gap-2">
-              <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                  Best fit
-                </p>
-                <p className="mt-2 text-lg font-semibold text-zinc-950">
-                  {topJob?.preferred_label ?? "No job match yet"}
-                </p>
-                <p className="mt-1 text-sm text-zinc-600">
-                  {topJob
-                    ? `${topJob.matched_skill_count ?? 0} matched skills`
-                    : "Try adding more skill detail."}
-                </p>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="rounded border border-zinc-200 bg-white px-3 py-3">
-                  <p className="text-2xl font-semibold text-zinc-950">
-                    {identifiedSkills.length}
-                  </p>
-                  <p className="mt-1 text-xs font-medium text-zinc-500">
-                    ESCO skills
-                  </p>
-                </div>
-                <div className="rounded border border-zinc-200 bg-white px-3 py-3">
-                  <p className="text-2xl font-semibold text-zinc-950">
-                    {topJobs.length}
-                  </p>
-                  <p className="mt-1 text-xs font-medium text-zinc-500">
-                    Jobs
-                  </p>
-                </div>
-                <div className="rounded border border-zinc-200 bg-white px-3 py-3">
-                  <p className="text-2xl font-semibold text-zinc-950">
-                    {extractedSkills.length}
-                  </p>
-                  <p className="mt-1 text-xs font-medium text-zinc-500">
-                    Signals
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-md border border-cyan-200 bg-cyan-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-800">
-                  What is ESCO?
-                </p>
-                <p className="mt-2 text-sm leading-6 text-cyan-950">
-                  ESCO is the European Skills, Competences, Qualifications and
-                  Occupations taxonomy. SkillRoute uses it as a shared language
-                  so lived experience can become portable skill IDs and job
-                  matches.
-                </p>
-              </div>
+            <div className="rounded border border-cyan-300 bg-white/70 px-3 py-2">
+              <span className="font-semibold text-zinc-950">
+                {acceptedSkills.length}
+              </span>{" "}
+              accepted skills
+            </div>
+            <div className="rounded border border-cyan-300 bg-white/70 px-3 py-2">
+              <span className="font-semibold text-zinc-950">
+                {declinedSkillCount}
+              </span>{" "}
+              declined skills
             </div>
           </div>
         </div>
 
-        <section className="grid gap-3">
+        <details className="rounded-md border border-zinc-300 bg-white shadow-sm">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-950">
+            See the system work
+          </summary>
+          <section className="grid gap-3 border-t border-zinc-200 bg-zinc-50 p-3">
           <details className="rounded-md border border-zinc-300 bg-white shadow-sm">
             <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-950">
               Step 1: how Milo collected the intake signal
@@ -3891,66 +3875,154 @@ export function SearchClient() {
               </div>
             </div>
           </details>
-        </section>
+          </section>
+        </details>
 
-        <section className="rounded-md border border-zinc-300 bg-white shadow-sm">
-          <div className="border-b border-zinc-200 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
-              Final skill profile
-            </p>
-            <h3 className="mt-1 text-xl font-semibold text-zinc-950">
-              Best fitting identified ESCO skills
-            </h3>
-            <p className="mt-1 text-sm leading-6 text-zinc-600">
-              These are the standardized skill IDs SkillRoute selected from the
-              ESCO search. They are portable across sectors and explain where
-              each match came from.
-            </p>
+        <section className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-sm">
+          <div className="grid gap-4 border-b border-zinc-200 bg-zinc-950 px-4 py-4 text-white lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-end">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                Final skill profile
+              </p>
+              <h3 className="mt-1 text-2xl font-semibold tracking-normal">
+                Best fitting identified ESCO skills
+              </h3>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-300">
+                Review each standardized skill match row by row. Accepted
+                skills feed the opportunity view; declined skills stay visible
+                for auditability.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-center text-sm">
+              <div className="rounded border border-emerald-300/40 bg-emerald-300/10 px-3 py-2">
+                <p className="text-2xl font-semibold text-white">
+                  {acceptedSkills.length}
+                </p>
+                <p className="text-xs font-medium text-emerald-100">Accepted</p>
+              </div>
+              <div className="rounded border border-rose-300/40 bg-rose-300/10 px-3 py-2">
+                <p className="text-2xl font-semibold text-white">
+                  {declinedSkillCount}
+                </p>
+                <p className="text-xs font-medium text-rose-100">Declined</p>
+              </div>
+            </div>
           </div>
           {identifiedSkills.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-zinc-500">
-              No ESCO skills were accepted for this profile.
+              No ESCO skills were found for this profile.
             </div>
           ) : (
-            <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-              {identifiedSkills.map((skill) => (
-                <article
-                  key={skill.concept_uri}
-                  className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h4 className="text-sm font-semibold text-zinc-950">
-                      {skill.preferred_label}
-                    </h4>
-                    <span
-                      className={`shrink-0 rounded border px-2 py-1 text-xs font-semibold ${skillConfidenceClass(
-                        skill.confidence,
-                      )}`}
-                    >
-                      {skillConfidenceLabel(skill.confidence)}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-700">
-                    User signal: {skill.user_skill}
-                  </p>
-                  <p className="mt-2 text-xs leading-5 text-zinc-500">
-                    Evidence: {skill.evidence_quote}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-zinc-200 pt-3 text-xs">
-                    <span className="break-all text-zinc-500">
-                      {skill.concept_uri}
-                    </span>
-                    <span className="shrink-0 font-semibold text-cyan-800">
-                      {skill.similarity.toFixed(3)}
-                    </span>
-                  </div>
-                </article>
-              ))}
-            </div>
+            <ol className="divide-y divide-zinc-200">
+              {identifiedSkills.map((skill, index) => {
+                const decision =
+                  skillDecisions[skill.concept_uri] ?? "accepted";
+                const isAccepted = decision === "accepted";
+
+                return (
+                  <li
+                    key={skill.concept_uri}
+                    className={`grid gap-4 px-4 py-4 lg:grid-cols-[3rem_minmax(0,1fr)_17rem] ${
+                      isAccepted ? "bg-white" : "bg-rose-50/60"
+                    }`}
+                  >
+                    <div className="grid h-9 w-9 place-items-center rounded-full border border-cyan-200 bg-cyan-50 text-sm font-semibold text-cyan-900">
+                      {index + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <a
+                          href={skill.concept_uri}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-lg font-semibold text-zinc-950 underline-offset-4 hover:text-cyan-800 hover:underline"
+                        >
+                          {skill.preferred_label}
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                        <span
+                          className={`rounded border px-2 py-1 text-xs font-semibold ${skillConfidenceClass(
+                            skill.confidence,
+                          )}`}
+                        >
+                          {skillConfidenceLabel(skill.confidence)}
+                        </span>
+                        <span
+                          className={`rounded px-2 py-1 text-xs font-semibold ${
+                            isAccepted
+                              ? "bg-emerald-100 text-emerald-950"
+                              : "bg-rose-100 text-rose-950"
+                          }`}
+                        >
+                          {isAccepted ? "Accepted" : "Declined"}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-zinc-700">
+                        User signal: {skill.user_skill}
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-zinc-600">
+                        Evidence: {skill.evidence_quote}
+                      </p>
+                      <p className="mt-2 break-all text-xs text-zinc-500">
+                        {skill.concept_uri}
+                      </p>
+                    </div>
+                    <div className="grid content-start gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                          Match score
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold text-cyan-800">
+                          {skill.similarity.toFixed(3)}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          className={`h-9 rounded-md px-3 ${
+                            isAccepted
+                              ? "bg-emerald-800 text-white hover:bg-emerald-900"
+                              : "bg-white text-emerald-900 hover:bg-emerald-50"
+                          }`}
+                          variant={isAccepted ? "default" : "outline"}
+                          onClick={() =>
+                            setSkillDecisions((current) => ({
+                              ...current,
+                              [skill.concept_uri]: "accepted",
+                            }))
+                          }
+                        >
+                          <Check />
+                          Accept
+                        </Button>
+                        <Button
+                          type="button"
+                          className={`h-9 rounded-md px-3 ${
+                            isAccepted
+                              ? "bg-white text-rose-900 hover:bg-rose-50"
+                              : "bg-rose-800 text-white hover:bg-rose-900"
+                          }`}
+                          variant={isAccepted ? "outline" : "default"}
+                          onClick={() =>
+                            setSkillDecisions((current) => ({
+                              ...current,
+                              [skill.concept_uri]: "declined",
+                            }))
+                          }
+                        >
+                          <X />
+                          Decline
+                        </Button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           )}
         </section>
 
-        {renderOpportunityDashboard(identifiedSkills, topJobs)}
+        {renderOpportunityDashboard(acceptedSkills, topJobs)}
 
         <section className="rounded-md border border-zinc-300 bg-white shadow-sm">
           <div className="border-b border-zinc-200 px-4 py-3">
@@ -4107,7 +4179,7 @@ export function SearchClient() {
                 Export and actions
               </p>
               <h3 className="mt-1 text-xl font-semibold text-zinc-950">
-                Save or restart this RouteMap
+                Save or restart this Skill Profile
               </h3>
               <p className="mt-1 text-sm leading-6 text-zinc-600">
                 The machine-readable JSON keeps the ESCO skill IDs, job IDs,
@@ -4156,59 +4228,22 @@ export function SearchClient() {
   return (
     <div className="min-h-screen bg-[#f7f8f5] text-zinc-950">
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
-        <section className="grid gap-4 border-b border-zinc-300 pb-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-end">
+        <section className="border-b border-zinc-300 pb-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
-              SkillRoute
+              {workspacePanel === "admin" ? "Admin Setup" : "Profile Builder"}
             </p>
             <h1 className="mt-2 max-w-4xl text-3xl font-semibold tracking-normal text-zinc-950 sm:text-4xl">
-              Skills intelligence for unmapped youth opportunity.
+              {workspacePanel === "admin"
+                ? "Configure the opportunity protocol."
+                : "Skills intelligence for unmapped youth opportunity."}
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600">
-              SkillRoute turns lived experience into ESCO-grounded skill
-              profiles and transparent job routes that a young person,
-              navigator, or training provider can understand.
+              {workspacePanel === "admin"
+                ? "Tune local labor-market sources, signal weights, and pathway rules that shape SkillRoute recommendations."
+                : "SkillRoute turns lived experience into ESCO-grounded skill profiles and transparent job routes that a young person, navigator, or training provider can understand."}
             </p>
           </div>
-          <nav className="rounded-md border border-zinc-300 bg-white px-4 py-3 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">
-              Workspace
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant={workspacePanel === "profile" ? "default" : "outline"}
-                className={`h-9 rounded-md px-3 ${
-                  workspacePanel === "profile"
-                    ? "bg-zinc-950 text-white hover:bg-cyan-800"
-                    : "border-zinc-300"
-                }`}
-                onClick={() => setWorkspacePanel("profile")}
-              >
-                <BriefcaseBusiness />
-                SkillRoute
-              </Button>
-              <Button
-                type="button"
-                variant={workspacePanel === "admin" ? "default" : "outline"}
-                className={`h-9 rounded-md px-3 ${
-                  workspacePanel === "admin"
-                    ? "bg-zinc-950 text-white hover:bg-cyan-800"
-                    : "border-zinc-300"
-                }`}
-                onClick={() => setWorkspacePanel("admin")}
-              >
-                <Settings2 />
-                Admin setup
-              </Button>
-              <Link
-                href="/tools"
-                className="rounded border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:border-cyan-700 hover:text-cyan-800"
-              >
-                ESCO tools
-              </Link>
-            </div>
-          </nav>
         </section>
 
         {workspacePanel === "admin" ? (

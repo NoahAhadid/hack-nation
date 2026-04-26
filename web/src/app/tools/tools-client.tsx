@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -271,10 +270,10 @@ export function ToolsClient() {
   return (
     <div className="min-h-screen bg-[#f7f8f5] text-stone-950">
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
-        <section className="grid gap-4 border-b border-stone-300 pb-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end">
+        <section className="border-b border-stone-300 pb-5">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
-              UNMAPPED Skill Engine
+              ESCO Tools
             </p>
             <h1 className="max-w-4xl text-3xl font-semibold tracking-normal text-stone-950 sm:text-4xl">
               ESCO search and occupation tools.
@@ -284,25 +283,6 @@ export function ToolsClient() {
               lookup occupations, skills, and ISCO labor-market trends.
             </p>
           </div>
-          <nav className="rounded-md border border-stone-300 bg-white px-4 py-3 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-[0.16em] text-stone-500">
-              Menu
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Link
-                href="/"
-                className="rounded border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-teal-700 hover:text-teal-800"
-              >
-                Build profile
-              </Link>
-              <Link
-                href="/tools"
-                className="rounded border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-950"
-              >
-                ESCO tools
-              </Link>
-            </div>
-          </nav>
         </section>
 
         {error ? (
