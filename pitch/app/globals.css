@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7efe6;
+  --foreground: #2b241e;
+  --primary: #a44e3b;
+  --secondary: #dcedf2;
+  --accent: #d9e7d3;
+  --muted: #675c50;
+  --card: #fffaf4;
+  --gold: #c98c3e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-gold: var(--gold);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}

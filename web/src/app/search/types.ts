@@ -205,7 +205,7 @@ export type OpportunityProtocolConfig = {
   signalWeights: Record<SignalWeightKey, number>;
   sources: ProtocolSource[];
   econometricSignals: EconometricSignal[];
-  opportunities: LocalOpportunity[];
+  opportunities?: LocalOpportunity[];
 };
 
 export type LocalOpportunityMatch = LocalOpportunity & {
@@ -215,25 +215,20 @@ export type LocalOpportunityMatch = LocalOpportunity & {
   scoreParts: Record<SignalWeightKey, number>;
 };
 
-export type OpportunityRealismReview = {
-  opportunityId: string;
-  title: string;
-  realismLevel: "high" | "medium" | "low" | "needs_more_data";
-  summary: string;
-  supportingSignals: string[];
-  risks: string[];
-  locationChallenges: string[];
-  nextChecks: string[];
+export type OccupationAnalysis = {
+  occupationLabel: string;
+  iscoGroup: string;
+  verdict: "recommended" | "possible" | "not_recommended";
+  verdictReason: string;
+  locationRelevance: string;
+  trendSummary: string;
+  educationFit: string;
+  skillGaps: string[];
+  actionableNextSteps: string[];
 };
 
 export type OpportunityFinalConsiderations = {
-  overallAssessment: string;
-  lmicsCautions: string[];
-  dataGaps: string[];
-  reviews: OpportunityRealismReview[];
+  occupationAnalyses: OccupationAnalysis[];
 };
 
-export type CachedProfile = {
-  profile: SkillProfile;
-  cached_at: string;
-};
+

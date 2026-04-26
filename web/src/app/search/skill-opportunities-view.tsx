@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 import { OpportunityDashboard } from "./opportunity-dashboard";
@@ -13,6 +13,7 @@ import type {
   SurveyData,
 } from "./types";
 import {
+  buildFinalConsiderationsLlmInput,
   buildLocalOpportunityMatches,
   formatCoveragePercent,
   formatCoverageValue,
@@ -306,10 +307,35 @@ export function SkillOpportunitiesView({
   const [finalConsiderations, setFinalConsiderations] =
     useState<OpportunityFinalConsiderations | null>(null);
   const [finalConsiderationsError, setFinalConsiderationsError] = useState("");
+  const finalConsiderationsLlmInput = useMemo(
+    () =>
+      buildFinalConsiderationsLlmInput({
+        surveyData,
+        currentProfile,
+        selectedOpportunityConfig,
+        localOpportunities: localMatches,
+        trendLookups,
+        educationLookups: eduTrendLookups,
+      }),
+    [
+      currentProfile,
+      eduTrendLookups,
+      localMatches,
+      selectedOpportunityConfig,
+      surveyData,
+      trendLookups,
+    ],
+  );
+  const finalConsiderationsLlmInputJson = useMemo(
+    () => JSON.stringify(finalConsiderationsLlmInput, null, 2),
+    [finalConsiderationsLlmInput],
+  );
 
-  // Auto-save opportunities when they are computed
+  // Auto-save opportunities once when they are first computed
+  const hasSavedOpportunities = useRef(false);
   useEffect(() => {
-    if (localMatches.length > 0 && onSaveOpportunities) {
+    if (localMatches.length > 0 && onSaveOpportunities && !hasSavedOpportunities.current) {
+      hasSavedOpportunities.current = true;
       onSaveOpportunities(localMatches);
     }
   }, [localMatches, onSaveOpportunities]);
@@ -440,50 +466,35 @@ export function SkillOpportunitiesView({
   }, [eduTrendJobs, trendLocation, eduTrendLookupKey, trendSex]);
 
   useEffect(() => {
-    let isCurrent = true;
-    const resetFinalConsiderations = () => {
-      queueMicrotask(() => {
-        if (!isCurrent) return;
-        setFinalConsiderationsStatus("idle");
-        setFinalConsiderations(null);
-        setFinalConsiderationsError("");
-      });
-    };
+    const abortController = new AbortController();
+
+    // Always clear old results synchronously so stale data is never shown
+    setFinalConsiderations(null);
+    setFinalConsiderationsError("");
 
     if (localMatches.length === 0) {
-      resetFinalConsiderations();
-      return () => {
-        isCurrent = false;
-      };
+      setFinalConsiderationsStatus("idle");
+      return () => { abortController.abort(); };
     }
 
-    const trendLookupExpected = Boolean(trendLocation && topTrendJobs.length > 0);
-    const trendStillLoading =
-      (trendLookupExpected && trendLookups.length !== topTrendJobs.length) ||
-      trendLookups.some((lookup) => lookup.status === "loading");
-
-    const eduLookupExpected = Boolean(trendLocation && eduTrendJobs.length > 0);
-    const eduStillLoading =
-      (eduLookupExpected && eduTrendLookups.length !== eduTrendJobs.length) ||
-      eduTrendLookups.some((lookup) => lookup.status === "loading");
+    const trendStillLoading = trendLookups.some(
+      (lookup) => lookup.status === "loading",
+    );
+    const eduStillLoading = eduTrendLookups.some(
+      (lookup) => lookup.status === "loading",
+    );
 
     if (trendStillLoading || eduStillLoading) {
-      resetFinalConsiderations();
-      return () => {
-        isCurrent = false;
-      };
+      setFinalConsiderationsStatus("idle");
+      return () => { abortController.abort(); };
     }
 
-    queueMicrotask(() => {
-      if (!isCurrent) return;
-      setFinalConsiderationsStatus("loading");
-      setFinalConsiderations(null);
-      setFinalConsiderationsError("");
-    });
+    setFinalConsiderationsStatus("loading");
 
-    void fetch("/api/opportunity-final-considerations", {
+    fetch("/api/opportunity-final-considerations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: abortController.signal,
       body: JSON.stringify({
         surveyData,
         currentProfile,
@@ -509,12 +520,12 @@ export function SkillOpportunitiesView({
         return payload as OpportunityFinalConsiderations;
       })
       .then((payload) => {
-        if (!isCurrent) return;
+        if (abortController.signal.aborted) return;
         setFinalConsiderations(payload);
         setFinalConsiderationsStatus("ready");
       })
       .catch((error) => {
-        if (!isCurrent) return;
+        if (abortController.signal.aborted) return;
         setFinalConsiderationsError(
           error instanceof Error
             ? error.message
@@ -523,9 +534,7 @@ export function SkillOpportunitiesView({
         setFinalConsiderationsStatus("error");
       });
 
-    return () => {
-      isCurrent = false;
-    };
+    return () => { abortController.abort(); };
   }, [
     currentProfile,
     eduTrendJobs.length,
@@ -1147,6 +1156,20 @@ export function SkillOpportunitiesView({
                 consider LMIC constraints such as connectivity, transport,
                 informal hiring, training access, startup costs, credentials,
                 and thin local data.
+              </div>
+
+              <div className="rounded-md border border-zinc-200 bg-zinc-950 px-3 py-3 text-zinc-50">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-300">
+                    LLM input data
+                  </p>
+                  <span className="rounded border border-zinc-700 px-2 py-1 text-[11px] font-medium text-zinc-300">
+                    Prompt excluded
+                  </span>
+                </div>
+                <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded border border-zinc-800 bg-zinc-900 p-3 text-xs leading-5 text-zinc-100">
+                  {finalConsiderationsLlmInputJson}
+                </pre>
               </div>
 
               {finalConsiderationsStatus === "loading" ? (

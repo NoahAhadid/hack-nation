@@ -11,7 +11,7 @@ import {
 
 const navItems = [
   {
-    href: "/",
+    href: "/skillroute",
     label: "SkillRoute",
     description: "SkillRoute workspace",
     icon: BriefcaseBusiness,

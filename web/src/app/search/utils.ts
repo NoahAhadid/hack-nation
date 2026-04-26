@@ -1,5 +1,4 @@
 import type {
-  CachedProfile,
   ChatMessage,
   IdentifiedSkill,
   LocalOpportunityMatch,
@@ -215,36 +214,6 @@ export function profileWithIsco08MajorCodes(profile: SkillProfile) {
   };
 }
 
-export function readCachedProfile(cacheKey: string) {
-  try {
-    const cachedValue = window.localStorage.getItem(cacheKey);
-    if (!cachedValue) return null;
-
-    const cachedProfile = JSON.parse(cachedValue) as CachedProfile;
-    if (!cachedProfile.profile?.export_metadata) return null;
-
-    return {
-      ...cachedProfile,
-      profile: profileWithIsco08MajorCodes(cachedProfile.profile),
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function writeCachedProfile(cacheKey: string, profile: SkillProfile) {
-  try {
-    const cachedProfile: CachedProfile = {
-      profile: profileWithIsco08MajorCodes(profile),
-      cached_at: new Date().toISOString(),
-    };
-
-    window.localStorage.setItem(cacheKey, JSON.stringify(cachedProfile));
-  } catch {
-    // Cache failures should never block the user from seeing the profile.
-  }
-}
-
 export function keywordMatchesProfile(keyword: string, profileText: string) {
   const normalizedKeyword = keyword.toLowerCase().trim();
 
@@ -282,7 +251,7 @@ export function protocolValidationIssues(config: OpportunityProtocolConfig) {
   if (config.econometricSignals.filter((signal) => signal.userVisible).length < 2) {
     issues.push("At least two user-visible econometric signals are needed.");
   }
-  if (config.opportunities.length === 0) {
+  if ((config.opportunities ?? []).length === 0) {
     issues.push("At least one local opportunity record is needed.");
   }
 
@@ -318,7 +287,7 @@ export function buildLocalOpportunityMatches(
     0,
   );
 
-  return config.opportunities
+  return (config.opportunities ?? [])
     .map((opportunity) => {
       const matchedKeywords = opportunity.skillKeywords.filter((keyword) =>
         keywordMatchesProfile(keyword, skillText),
@@ -401,4 +370,218 @@ export function parseCsvHeaderLine(line: string) {
   columns.push(current.trim());
 
   return columns.filter(Boolean);
+}
+
+export type FinalConsiderationsTrendInput = {
+  majorCode?: unknown;
+  status?: unknown;
+  path?: { preferred_label?: unknown };
+  trend?: {
+    direction?: unknown;
+    latest?: { year?: unknown; value?: unknown };
+    latestChange?: { percent?: unknown } | null;
+    periodChange?: { percent?: unknown } | null;
+    unit?: unknown;
+    majorGroup?: unknown;
+  };
+  error?: unknown;
+};
+
+export type FinalConsiderationsEducationInput = {
+  majorCode?: unknown;
+  matchLabel?: unknown;
+  status?: unknown;
+  error?: unknown;
+  data?: {
+    majorGroup?: unknown;
+    unit?: unknown;
+    latestYear?: unknown;
+    distribution?: Array<{
+      level?: unknown;
+      value?: unknown;
+      percent?: unknown;
+    }>;
+    levels?: Array<{
+      level?: unknown;
+      latest?: { year?: unknown; value?: unknown } | null;
+      latestChange?: { percent?: unknown } | null;
+      periodChange?: { percent?: unknown } | null;
+      points?: Array<{ year?: unknown; value?: unknown }>;
+    }>;
+  };
+};
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function numberValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function compactSurveyData(surveyData: SurveyData | undefined) {
+  if (!surveyData) return {};
+
+  return {
+    age: surveyData.age,
+    location: surveyData.location,
+    languages: surveyData.languages,
+    work_authorization: surveyData.work_authorization,
+    availability: surveyData.availability,
+    work_mode_preference: surveyData.work_mode_preference,
+    educational_level: surveyData.educational_level,
+    target_outcome: surveyData.target_outcome,
+    target_roles: surveyData.target_roles,
+    target_industries: surveyData.target_industries,
+    time_horizon: surveyData.time_horizon,
+    priority_tradeoff: surveyData.priority_tradeoff,
+    favorite_skill: surveyData.favorite_skill,
+    current_role_title: surveyData.current_role_title,
+    current_industry: surveyData.current_industry,
+    years_experience_total: surveyData.years_experience_total,
+    years_experience_domain: surveyData.years_experience_domain,
+    skill_confidence: surveyData.skill_confidence,
+    informal_experience: surveyData.informal_experience,
+    demonstrated_competencies: surveyData.demonstrated_competencies,
+    raw_skills: surveyData.skills,
+  };
+}
+
+function compactProfile(profile: SkillProfile | undefined) {
+  if (!profile) return {};
+
+  return {
+    person_summary: profile.person_summary,
+    education: profile.education,
+    languages: profile.languages,
+    evidence: profile.experience_evidence.slice(0, 8).map((item) => ({
+      skill_label: item.skill_label,
+      evidence_quote: item.evidence_quote,
+      competency: item.competency,
+      mapped: item.mapped,
+    })),
+    identified_skills: (profile.identified_skills ?? []).map((skill) => ({
+      preferred_label: skill.preferred_label,
+      user_skill: skill.user_skill,
+      confidence: skill.confidence,
+    })),
+    occupation_paths: profile.occupation_paths.slice(0, 5).map((path) => ({
+      preferred_label: path.preferred_label,
+      iscoGroup: path.iscoGroup ?? path.isco_group,
+      matched_skill_labels: path.matched_skill_labels,
+      skill_coverage: path.skill_coverage,
+      explanation: path.explanation,
+    })),
+  };
+}
+
+function compactOpportunity(match: LocalOpportunityMatch) {
+  return {
+    opportunityId: match.id,
+    title: match.title,
+    sector: match.sector,
+    opportunityType: match.opportunityType,
+    iscoGroup: match.iscoGroup,
+    localFitScore: Math.round(match.score * 100),
+    matchedKeywords: match.matchedKeywords,
+    relatedOccupationLabels: match.relatedOccupationLabels,
+    locationFit: match.locationFit,
+    requiredEducation: match.requiredEducation,
+    demandLevel: match.demandLevel,
+    wageFloorSignal: match.wageFloorSignal,
+    growthOutlook: match.growthOutlook,
+    automationExposure: match.automationExposure,
+    trainingAccess: match.trainingAccess,
+    trainingPathway: match.trainingPathway,
+    sourceIds: match.sourceIds,
+  };
+}
+
+function compactTrend(lookup: FinalConsiderationsTrendInput) {
+  return {
+    occupation: stringValue(lookup.path?.preferred_label),
+    majorCode: stringValue(lookup.majorCode),
+    status: stringValue(lookup.status),
+    error: stringValue(lookup.error),
+    majorGroup: stringValue(lookup.trend?.majorGroup),
+    direction: stringValue(lookup.trend?.direction),
+    latest: {
+      year: numberValue(lookup.trend?.latest?.year),
+      value: numberValue(lookup.trend?.latest?.value),
+      unit: stringValue(lookup.trend?.unit),
+    },
+    latestChangePercent: numberValue(lookup.trend?.latestChange?.percent),
+    periodChangePercent: numberValue(lookup.trend?.periodChange?.percent),
+  };
+}
+
+function compactEducation(lookup: FinalConsiderationsEducationInput) {
+  const data = lookup.data;
+  return {
+    majorCode: stringValue(lookup.majorCode),
+    occupation: stringValue(lookup.matchLabel),
+    status: stringValue(lookup.status),
+    error: stringValue(lookup.error),
+    majorGroup: stringValue(data?.majorGroup),
+    latestYear: numberValue(data?.latestYear),
+    unit: stringValue(data?.unit),
+    distribution: Array.isArray(data?.distribution)
+      ? data.distribution.map((d) => ({
+          level: stringValue(d.level),
+          value: numberValue(d.value),
+          percent: numberValue(d.percent),
+        }))
+      : [],
+    levelTrends: Array.isArray(data?.levels)
+      ? data.levels.map((l) => ({
+          level: stringValue(l.level),
+          latestValue: numberValue(l.latest?.value),
+          latestYear: numberValue(l.latest?.year),
+          latestChangePercent: numberValue(l.latestChange?.percent),
+          periodChangePercent: numberValue(l.periodChange?.percent),
+          dataPoints: Array.isArray(l.points) ? l.points.length : 0,
+        }))
+      : [],
+  };
+}
+
+export function buildFinalConsiderationsLlmInput(input: {
+  surveyData?: SurveyData;
+  currentProfile?: SkillProfile;
+  selectedOpportunityConfig?: OpportunityProtocolConfig;
+  localOpportunities?: LocalOpportunityMatch[];
+  trendLookups?: FinalConsiderationsTrendInput[];
+  educationLookups?: FinalConsiderationsEducationInput[];
+}) {
+  const acceptedSkills = (input.currentProfile?.identified_skills ?? []).map(
+    (skill) => ({
+      label: skill.preferred_label,
+      userSkill: skill.user_skill,
+      confidence: skill.confidence,
+    }),
+  );
+
+  const bestFittingJobs = input.currentProfile?.occupation_paths
+    .slice(0, 5)
+    .map((path) => ({
+      label: path.preferred_label,
+      iscoGroup: path.iscoGroup ?? path.isco_group,
+      matchedSkills: path.matched_skill_labels,
+      skillCoverage: path.skill_coverage,
+      explanation: path.explanation,
+    })) ?? [];
+
+  return {
+    personLocation: input.surveyData?.location ?? "",
+    personEducation: input.surveyData?.educational_level ?? "",
+    personAge: input.surveyData?.age ?? "",
+    acceptedSkills,
+    bestFittingJobs,
+    step2EmploymentTrends: Array.isArray(input.trendLookups)
+      ? input.trendLookups.map(compactTrend)
+      : [],
+    step3EducationTrends: Array.isArray(input.educationLookups)
+      ? input.educationLookups.map(compactEducation)
+      : [],
+  };
 }

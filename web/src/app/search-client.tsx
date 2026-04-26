@@ -3,7 +3,6 @@
 import { FormEvent, useMemo, useState } from "react";
 
 import {
-  AMARA_DEMO_CACHE_KEY,
   amaraDemoMessages,
   amaraSurveyData,
   emptySurveyData,
@@ -33,8 +32,6 @@ import {
   missingSurveyFields,
   parseCsvHeaderLine,
   promptForMissingFields,
-  readCachedProfile,
-  writeCachedProfile,
 } from "./search/utils";
 
 type SearchClientProps = {
@@ -69,6 +66,7 @@ export function SearchClient({
   const [sessionKey, setSessionKey] = useState<string>(
     () => crypto.randomUUID()
   );
+  const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
   const [savedProfileId, setSavedProfileId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState("");
 
@@ -190,7 +188,6 @@ export function SearchClient({
     messages = profileMessages,
     data = surveyData,
     allowIncomplete = false,
-    cacheKey?: string,
   ) {
     if (!allowIncomplete && missingSurveyFields(data).length > 0) {
       setProfileStatus(promptForMissingFields(data));
@@ -233,13 +230,7 @@ export function SearchClient({
             demonstratedCompetencies: data.demonstrated_competencies,
             rawSkills: data.skills,
             targetRoles: data.target_roles,
-            targetSectors: [
-              ...new Set(
-                selectedOpportunityConfig.opportunities.map(
-                  (opportunity) => opportunity.sector,
-                ),
-              ),
-            ],
+            targetSectors: selectedOpportunityConfig.opportunityTypes,
             opportunityProtocol: {
               version: selectedOpportunityConfig.version,
               contextId: selectedOpportunityConfig.id,
@@ -261,19 +252,11 @@ export function SearchClient({
         throw new Error(payload.error || "Profile generation failed.");
       }
 
-      if (cacheKey) {
-        writeCachedProfile(cacheKey, payload);
-      }
-
       setProfile(payload);
       setSkillDecisions({});
       setCalculationStage("done");
       setViewPhase("results");
-      setProfileStatus(
-        cacheKey
-          ? "Skill profile generated and cached for next time."
-          : "Skill profile generated.",
-      );
+      setProfileStatus("Skill profile generated.");
       
       // Auto-save profile to Supabase
       void saveProfileToSupabase(payload, data);
@@ -312,8 +295,6 @@ export function SearchClient({
   }
 
   function loadAmaraDemo() {
-    const cachedProfile = readCachedProfile(AMARA_DEMO_CACHE_KEY);
-
     setProfile(null);
     setSkillDecisions({});
     setError("");
@@ -324,21 +305,9 @@ export function SearchClient({
       ...amaraDemoMessages,
       {
         role: "assistant",
-        content: cachedProfile
-          ? "I have Amara's cached Skill Profile ready."
-          : "I have Amara's core signal. I am building her Skill Profile now.",
+        content: "I have Amara's core signal. I am building her Skill Profile now.",
       },
     ]);
-
-    if (cachedProfile) {
-      writeCachedProfile(AMARA_DEMO_CACHE_KEY, cachedProfile.profile);
-      setProfile(cachedProfile.profile);
-      setCalculationStage("done");
-      setViewPhase("results");
-      setProfileStatus("Loaded cached Amara Skill Profile. No API call used.");
-      setIsGeneratingProfile(false);
-      return;
-    }
 
     setCalculationStage("collected");
     setViewPhase("loading");
@@ -346,7 +315,6 @@ export function SearchClient({
       amaraDemoMessages,
       amaraSurveyData,
       false,
-      AMARA_DEMO_CACHE_KEY,
     );
   }
 
@@ -459,6 +427,7 @@ export function SearchClient({
       }
 
       setSavedProfileId(result.profileId);
+      setSavedSessionId(result.sessionId);
       setSessionKey(result.sessionKey);
       setSaveStatus("Profile saved successfully");
       
@@ -488,7 +457,7 @@ export function SearchClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           opportunities: opportunities,
-          sessionId: sessionKey,
+          sessionId: savedSessionId,
           profileId: savedProfileId,
         }),
       });

@@ -86,6 +86,18 @@ export function OpportunityDashboard({
         <h3 className="mt-1 text-xl font-semibold text-zinc-950">
           Final recommendations for {selectedOpportunityConfig.region}
         </h3>
+        {identifiedSkills.length > 0 ? (
+          <p className="mt-2 text-sm text-zinc-600">
+            Based on your {identifiedSkills.length} verified skills
+            {topJobs.length > 0
+              ? ` and ${topJobs.length} matched ESCO occupations (${topJobs.slice(0, 3).map((j) => j.preferred_label).join(", ")}${topJobs.length > 3 ? "…" : ""})`
+              : ""}
+            {surveyData.educational_level
+              ? `, education: ${surveyData.educational_level}`
+              : ""}
+            {surveyData.location ? `, location: ${surveyData.location}` : ""}
+          </p>
+        ) : null}
       </div>
 
       <ol className="divide-y divide-zinc-200">
@@ -94,10 +106,49 @@ export function OpportunityDashboard({
             (kw) => !match.matchedKeywords.includes(kw),
           );
 
+          // Find user's ESCO skills that relate to this opportunity's keywords
+          const relevantUserSkills = identifiedSkills.filter((skill) => {
+            const label = skill.preferred_label.toLowerCase();
+            return match.skillKeywords.some(
+              (kw) =>
+                label.includes(kw.toLowerCase()) ||
+                kw.toLowerCase().includes(label) ||
+                kw
+                  .toLowerCase()
+                  .split(/\s+/)
+                  .filter((w) => w.length > 3)
+                  .some((w) => label.includes(w)),
+            );
+          });
+
+          // Find user's ESCO occupations that relate to this opportunity
+          const relatedUserOccupations = topJobs.filter((job) => {
+            const jobLabel = job.preferred_label.toLowerCase();
+            const sector = match.sector.toLowerCase();
+            return (
+              jobLabel.includes(sector) ||
+              sector.includes(jobLabel) ||
+              match.skillKeywords.some((kw) =>
+                job.matched_skill_labels
+                  .join(" ")
+                  .toLowerCase()
+                  .includes(kw.toLowerCase()),
+              )
+            );
+          });
+
           const whyReasons: string[] = [];
+          if (relevantUserSkills.length > 0)
+            whyReasons.push(
+              `Your ESCO-verified skills (${relevantUserSkills.map((s) => s.preferred_label).join(", ")}) directly apply to this role`,
+            );
           if (match.scoreParts.skillFit >= 0.5)
             whyReasons.push(
               `Your skills already cover ${Math.round(match.scoreParts.skillFit * 100)}% of what this role needs`,
+            );
+          if (relatedUserOccupations.length > 0)
+            whyReasons.push(
+              `Your profile matches ESCO occupations: ${relatedUserOccupations.slice(0, 2).map((j) => j.preferred_label).join(", ")}`,
             );
           if (match.scoreParts.localDemand >= 0.6)
             whyReasons.push(
@@ -121,7 +172,7 @@ export function OpportunityDashboard({
             );
           if (surveyData.educational_level && match.requiredEducation)
             whyReasons.push(
-              `Required education: ${match.requiredEducation}`,
+              `Your education (${surveyData.educational_level}) vs. required: ${match.requiredEducation}`,
             );
           if (whyReasons.length === 0)
             whyReasons.push(
@@ -228,6 +279,28 @@ export function OpportunityDashboard({
                   )}
                 </div>
               </div>
+
+              {/* Your ESCO skills relevant to this opportunity */}
+              {relevantUserSkills.length > 0 ? (
+                <div className="mt-4 rounded-md border border-indigo-200 bg-indigo-50/50 px-3 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-800">
+                    Your verified ESCO skills for this role ({relevantUserSkills.length})
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {relevantUserSkills.map((skill) => (
+                      <span
+                        key={skill.concept_uri}
+                        className="rounded-full border border-indigo-300 bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-900"
+                      >
+                        {skill.preferred_label}
+                        <span className="ml-1 text-indigo-600">
+                          ({skill.confidence})
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {/* Why this is good for you */}
               <div className="mt-4 rounded-md border border-cyan-200 bg-cyan-50/50 px-3 py-3">
