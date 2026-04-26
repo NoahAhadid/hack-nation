@@ -322,3 +322,185 @@ as $$
     o.description
   order by relation_rank, preferred_label;
 $$;
+
+-- User sessions and skill profiles
+create table if not exists public.user_sessions (
+  id uuid primary key default gen_random_uuid(),
+  session_key text unique,
+  user_identifier text,
+  survey_data jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists user_sessions_session_key_idx
+  on public.user_sessions (session_key);
+
+create index if not exists user_sessions_created_at_idx
+  on public.user_sessions (created_at desc);
+
+-- Skill profiles linked to sessions
+create table if not exists public.skill_profiles (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid references public.user_sessions(id) on delete cascade,
+  person_summary text,
+  education text,
+  languages text[] not null default '{}',
+  extracted_skills jsonb,
+  experience_evidence jsonb,
+  unmapped_evidence jsonb,
+  grounding_trace jsonb,
+  identified_skills jsonb,
+  occupation_paths jsonb,
+  export_metadata jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists skill_profiles_session_id_idx
+  on public.skill_profiles (session_id);
+
+create index if not exists skill_profiles_created_at_idx
+  on public.skill_profiles (created_at desc);
+
+-- Identified skills (normalized for querying)
+create table if not exists public.user_identified_skills (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid references public.skill_profiles(id) on delete cascade,
+  session_id uuid references public.user_sessions(id) on delete cascade,
+  concept_uri text not null,
+  preferred_label text not null,
+  user_skill text,
+  evidence_quote text,
+  confidence text,
+  similarity double precision,
+  decision text check (decision in ('accepted', 'declined')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists user_identified_skills_profile_id_idx
+  on public.user_identified_skills (profile_id);
+
+create index if not exists user_identified_skills_session_id_idx
+  on public.user_identified_skills (session_id);
+
+create index if not exists user_identified_skills_concept_uri_idx
+  on public.user_identified_skills (concept_uri);
+
+-- Matched opportunities for users
+create table if not exists public.user_opportunities (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid references public.user_sessions(id) on delete cascade,
+  profile_id uuid references public.skill_profiles(id) on delete cascade,
+  opportunity_id text not null,
+  title text not null,
+  sector text,
+  opportunity_type text,
+  isco_group text,
+  location_fit text,
+  required_education text,
+  skill_keywords text[] not null default '{}',
+  matched_keywords text[] not null default '{}',
+  related_occupation_labels text[] not null default '{}',
+  demand_level double precision,
+  wage_floor_signal double precision,
+  wage_floor text,
+  growth_outlook double precision,
+  automation_exposure double precision,
+  training_access double precision,
+  training_pathway text,
+  match_score double precision,
+  score_parts jsonb,
+  source_ids text[] not null default '{}',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists user_opportunities_session_id_idx
+  on public.user_opportunities (session_id);
+
+create index if not exists user_opportunities_profile_id_idx
+  on public.user_opportunities (profile_id);
+
+create index if not exists user_opportunities_match_score_idx
+  on public.user_opportunities (match_score desc);
+
+create index if not exists user_opportunities_isco_group_idx
+  on public.user_opportunities (isco_group);
+
+-- Analytics functions for econometric dashboard
+
+-- Get top skills across all users
+create or replace function public.get_top_skills(limit_count int default 20)
+returns table (
+  concept_uri text,
+  preferred_label text,
+  user_count bigint,
+  total_occurrences bigint,
+  strong_count bigint,
+  medium_count bigint,
+  needs_review_count bigint,
+  accepted_count bigint,
+  declined_count bigint,
+  acceptance_rate numeric
+)
+language sql
+stable
+as $$
+  select
+    concept_uri,
+    preferred_label,
+    count(distinct session_id) as user_count,
+    count(*) as total_occurrences,
+    count(*) filter (where confidence = 'strong') as strong_count,
+    count(*) filter (where confidence = 'medium') as medium_count,
+    count(*) filter (where confidence = 'needs_review') as needs_review_count,
+    count(*) filter (where decision = 'accepted') as accepted_count,
+    count(*) filter (where decision = 'declined') as declined_count,
+    case
+      when count(*) filter (where decision is not null) > 0
+      then round(
+        count(*) filter (where decision = 'accepted')::numeric /
+        count(*) filter (where decision is not null)::numeric * 100,
+        2
+      )
+      else 0
+    end as acceptance_rate
+  from public.user_identified_skills
+  group by concept_uri, preferred_label
+  order by total_occurrences desc, user_count desc
+  limit limit_count;
+$$;
+
+-- Get top opportunities across all users
+create or replace function public.get_top_opportunities(limit_count int default 20)
+returns table (
+  opportunity_id text,
+  title text,
+  sector text,
+  isco_group text,
+  user_count bigint,
+  total_matches bigint,
+  avg_match_score numeric,
+  avg_demand_level numeric,
+  avg_wage_floor_signal numeric,
+  avg_growth_outlook numeric
+)
+language sql
+stable
+as $$
+  select
+    opportunity_id,
+    max(title) as title,
+    max(sector) as sector,
+    max(isco_group) as isco_group,
+    count(distinct session_id) as user_count,
+    count(*) as total_matches,
+    round(avg(match_score)::numeric, 2) as avg_match_score,
+    round(avg(demand_level)::numeric, 2) as avg_demand_level,
+    round(avg(wage_floor_signal)::numeric, 2) as avg_wage_floor_signal,
+    round(avg(growth_outlook)::numeric, 2) as avg_growth_outlook
+  from public.user_opportunities
+  group by opportunity_id
+  order by total_matches desc, user_count desc, avg_match_score desc
+  limit limit_count;
+$$;

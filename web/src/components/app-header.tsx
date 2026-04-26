@@ -6,6 +6,7 @@ import {
   BriefcaseBusiness,
   Database,
   Settings2,
+  TrendingUp,
 } from "lucide-react";
 
 const navItems = [
@@ -26,6 +27,12 @@ const navItems = [
     label: "ESCO Tools",
     description: "Search and labor signals",
     icon: Database,
+  },
+  {
+    href: "/econometric",
+    label: "Econometric",
+    description: "Labor market analytics",
+    icon: TrendingUp,
   },
 ];
 

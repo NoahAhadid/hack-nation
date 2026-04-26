@@ -21,6 +21,7 @@ import type {
   ChatMessage,
   IntakeAnalysis,
   JourneyStep,
+  LocalOpportunityMatch,
   SkillDecision,
   SkillProfile,
   SurveyData,
@@ -65,6 +66,11 @@ export function SearchClient({
   const [adminIscoColumn, setAdminIscoColumn] = useState("");
   const [selectedOpportunityConfigId, setSelectedOpportunityConfigId] =
     useState(initialOpportunityProtocols[0].id);
+  const [sessionKey, setSessionKey] = useState<string>(
+    () => crypto.randomUUID()
+  );
+  const [savedProfileId, setSavedProfileId] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState("");
 
   const selectedOpportunityConfig =
     initialOpportunityProtocols.find(
@@ -268,6 +274,9 @@ export function SearchClient({
           ? "Skill profile generated and cached for next time."
           : "Skill profile generated.",
       );
+      
+      // Auto-save profile to Supabase
+      void saveProfileToSupabase(payload, data);
     } catch (profileError) {
       setProfile(null);
       setCalculationStage("idle");
@@ -426,6 +435,83 @@ export function SearchClient({
     });
   }
 
+  async function saveProfileToSupabase(
+    currentProfile: SkillProfile,
+    currentSurveyData: SurveyData
+  ) {
+    try {
+      setSaveStatus("Saving profile...");
+      const response = await fetch("/api/save-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profile: currentProfile,
+          surveyData: currentSurveyData,
+          sessionKey: sessionKey,
+          skillDecisions: skillDecisions,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || "Failed to save profile");
+      }
+
+      setSavedProfileId(result.profileId);
+      setSessionKey(result.sessionKey);
+      setSaveStatus("Profile saved successfully");
+      
+      // Clear status after 3 seconds
+      setTimeout(() => setSaveStatus(""), 3000);
+    } catch (saveError) {
+      console.error("Save profile error:", saveError);
+      setSaveStatus(
+        saveError instanceof Error ? saveError.message : "Failed to save profile"
+      );
+      setTimeout(() => setSaveStatus(""), 5000);
+    }
+  }
+
+  async function saveOpportunitiesToSupabase(
+    opportunities: LocalOpportunityMatch[]
+  ) {
+    if (!savedProfileId) {
+      setSaveStatus("Profile must be saved first");
+      return;
+    }
+
+    try {
+      setSaveStatus("Saving opportunities...");
+      const response = await fetch("/api/save-opportunities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          opportunities: opportunities,
+          sessionId: sessionKey,
+          profileId: savedProfileId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || "Failed to save opportunities");
+      }
+
+      setSaveStatus(`Saved ${result.count} opportunities`);
+      setTimeout(() => setSaveStatus(""), 3000);
+    } catch (saveError) {
+      console.error("Save opportunities error:", saveError);
+      setSaveStatus(
+        saveError instanceof Error
+          ? saveError.message
+          : "Failed to save opportunities"
+      );
+      setTimeout(() => setSaveStatus(""), 5000);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#f7f8f5] text-zinc-950">
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
@@ -509,6 +595,9 @@ export function SearchClient({
                 selectedOpportunityConfig={selectedOpportunityConfig}
                 skillDecisions={skillDecisions}
                 surveyData={surveyData}
+                onSaveOpportunities={(opportunities) =>
+                  void saveOpportunitiesToSupabase(opportunities)
+                }
               />
             ) : null}
             {viewPhase === "loading" ? (
@@ -540,6 +629,12 @@ export function SearchClient({
         {error ? (
           <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-900">
             {error}
+          </div>
+        ) : null}
+        
+        {saveStatus ? (
+          <div className="fixed bottom-4 right-4 z-50 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-900 shadow-lg">
+            {saveStatus}
           </div>
         ) : null}
       </main>

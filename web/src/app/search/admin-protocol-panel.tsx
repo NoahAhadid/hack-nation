@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Hash, Plus, Table2, X, Check } from "lucide-react";
 
 type CsvConfiguration = {
+  name: string;
   fileName: string;
   iscoColumn: string;
   selectedFeatures: string[];
@@ -126,6 +127,7 @@ export function AdminProtocolPanel({
   const [tempFile, setTempFile] = useState<File | undefined>();
   const [tempColumns, setTempColumns] = useState<string[]>([]);
   const [tempPrompt, setTempPrompt] = useState("");
+  const [tempName, setTempName] = useState("");
   const [csvConfigurations, setCsvConfigurations] = useState<CsvConfiguration[]>([]);
 
   const handleFileSelect = async (file: File | undefined) => {
@@ -141,12 +143,14 @@ export function AdminProtocolPanel({
     setTempIscoColumn(headers[0] || "");
     setSelectedFeatures([]);
     setTempPrompt("");
+    setTempName("");
     setIsModalOpen(true);
   };
 
   const handleConfirmConfiguration = () => {
     if (tempFile) {
       const newConfig: CsvConfiguration = {
+        name: tempName || tempFile.name,
         fileName: tempFile.name,
         iscoColumn: tempIscoColumn,
         selectedFeatures: selectedFeatures,
@@ -279,7 +283,7 @@ export function AdminProtocolPanel({
               CSV intake UI
             </p>
             <h3 className="mt-1 text-xl font-semibold text-zinc-950">
-              Upload CSVs and configure data sources
+              Add Sginal and Trend Data
             </h3>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
               Upload multiple CSV files, select the ISCO column, choose feature columns for recommendations, and add custom prompts for each data source.
@@ -309,11 +313,14 @@ export function AdminProtocolPanel({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-700">
-                        Data source {index + 1}
+                        Signal
                       </p>
-                      <h4 className="mt-1 break-all font-mono text-sm font-semibold text-zinc-950">
-                        {config.fileName}
+                      <h4 className="mt-1 text-lg font-semibold text-zinc-950">
+                        {config.name}
                       </h4>
+                      <p className="mt-1 break-all font-mono text-xs text-zinc-500">
+                        {config.fileName}
+                      </p>
                       {config.prompt && (
                         <p className="mt-2 text-sm leading-6 text-zinc-600">
                           <span className="font-semibold">Prompt:</span> {config.prompt}
@@ -401,6 +408,25 @@ export function AdminProtocolPanel({
             {/* Modal Content */}
             <div className="max-h-[70vh] overflow-y-auto p-6">
               <div className="grid gap-6">
+                {/* Signal Name */}
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
+                  <label className="grid gap-2">
+                    <span className="text-sm font-semibold text-zinc-950">
+                      Signal Name <span className="text-red-600">*</span>
+                    </span>
+                    <p className="text-xs leading-5 text-zinc-600">
+                      Give this data source a descriptive name (e.g., "Regional Wage Data", "Tech Sector Growth")
+                    </p>
+                    <input
+                      type="text"
+                      value={tempName}
+                      onChange={(e) => setTempName(e.target.value)}
+                      placeholder="e.g., Regional Wage Data"
+                      className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-700/15"
+                    />
+                  </label>
+                </div>
+
                 {/* ISCO Column Selection */}
                 <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
                   <label className="grid gap-2">
@@ -513,7 +539,7 @@ export function AdminProtocolPanel({
               </button>
               <button
                 onClick={handleConfirmConfiguration}
-                disabled={!tempIscoColumn}
+                disabled={!tempIscoColumn || !tempName.trim()}
                 className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-cyan-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
               >
                 Confirm Configuration

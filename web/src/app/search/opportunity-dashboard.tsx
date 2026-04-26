@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+
 import type {
   IdentifiedSkill,
   LocalOpportunityMatch,
@@ -17,6 +19,40 @@ type OpportunityDashboardProps = {
   topJobs: OccupationPath[];
 };
 
+function signalLabel(key: string) {
+  const labels: Record<string, string> = {
+    skillFit: "Skill fit",
+    localDemand: "Local demand",
+    wageFloor: "Wage floor",
+    growth: "Growth outlook",
+    automationResilience: "Automation resilience",
+    trainingAccess: "Training access",
+  };
+  return labels[key] ?? key;
+}
+
+function strengthWord(value: number) {
+  if (value >= 0.8) return "Strong";
+  if (value >= 0.5) return "Moderate";
+  return "Low";
+}
+
+function strengthColor(value: number) {
+  if (value >= 0.8) return "text-emerald-700";
+  if (value >= 0.5) return "text-cyan-700";
+  return "text-amber-700";
+}
+
+function barPercent(value: number) {
+  return `${Math.min(Math.round(value * 100), 100)}%`;
+}
+
+function barColor(value: number) {
+  if (value >= 0.8) return "bg-emerald-400";
+  if (value >= 0.5) return "bg-cyan-400";
+  return "bg-amber-400";
+}
+
 export function OpportunityDashboard({
   identifiedSkills,
   localMatches: providedLocalMatches,
@@ -33,6 +69,14 @@ export function OpportunityDashboard({
       topJobs,
     ).slice(0, 4);
 
+  const userSkillLabels = useMemo(
+    () =>
+      new Set(
+        identifiedSkills.map((s) => s.preferred_label.toLowerCase()),
+      ),
+    [identifiedSkills],
+  );
+
   return (
     <section className="rounded-md border border-zinc-300 bg-white shadow-sm">
       <div className="border-b border-zinc-200 px-4 py-4">
@@ -45,79 +89,248 @@ export function OpportunityDashboard({
       </div>
 
       <ol className="divide-y divide-zinc-200">
-        {localMatches.map((match, index) => (
-          <li
-            key={match.id}
-            className="grid gap-4 px-4 py-4 lg:grid-cols-[3rem_minmax(0,1fr)_12rem]"
-          >
-            <p className="text-2xl font-semibold text-cyan-800">{index + 1}</p>
-            <div className="min-w-0">
-              <h4 className="text-lg font-semibold text-zinc-950">
-                {match.title}
-              </h4>
-              <p className="mt-1 text-sm text-zinc-600">
-                {match.sector} · {match.opportunityType} · ISCO{" "}
-                {match.iscoGroup}
-              </p>
-              <p className="mt-3 text-sm leading-6 text-zinc-700">
-                This route is ranked because the profile matches{" "}
-                {match.matchedKeywords.length || "some"} required local skill
-                signal
-                {match.matchedKeywords.length === 1 ? "" : "s"}, with local
-                demand {match.demandLevel}/5 and automation exposure{" "}
-                {match.automationExposure}/5.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {match.matchedKeywords.length > 0 ? (
-                  match.matchedKeywords.map((keyword) => (
-                    <span
-                      key={`${match.id}-${keyword}`}
-                      className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-950"
-                    >
-                      {keyword}
-                    </span>
-                  ))
-                ) : (
-                  <span className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-950">
-                    Review skill fit
+        {localMatches.map((match, index) => {
+          const missingKeywords = match.skillKeywords.filter(
+            (kw) => !match.matchedKeywords.includes(kw),
+          );
+
+          const whyReasons: string[] = [];
+          if (match.scoreParts.skillFit >= 0.5)
+            whyReasons.push(
+              `Your skills already cover ${Math.round(match.scoreParts.skillFit * 100)}% of what this role needs`,
+            );
+          if (match.scoreParts.localDemand >= 0.6)
+            whyReasons.push(
+              `Local demand is strong (${match.demandLevel}/5) in ${selectedOpportunityConfig.region}`,
+            );
+          if (match.scoreParts.growth >= 0.6)
+            whyReasons.push(
+              `Growth outlook is positive (${match.growthOutlook}/5)`,
+            );
+          if (match.scoreParts.automationResilience >= 0.6)
+            whyReasons.push(
+              `Low automation risk makes this role more sustainable`,
+            );
+          if (match.scoreParts.trainingAccess >= 0.6)
+            whyReasons.push(
+              `Training pathways are accessible in your area`,
+            );
+          if (match.scoreParts.wageFloor >= 0.6)
+            whyReasons.push(
+              `Wage floor signal is promising (${match.wageFloor})`,
+            );
+          if (surveyData.educational_level && match.requiredEducation)
+            whyReasons.push(
+              `Required education: ${match.requiredEducation}`,
+            );
+          if (whyReasons.length === 0)
+            whyReasons.push(
+              "This opportunity was the best available match across all signals.",
+            );
+
+          return (
+            <li key={match.id} className="px-4 py-5">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-sm font-bold text-cyan-800">
+                    {index + 1}
                   </span>
-                )}
-              </div>
-              <div className="mt-4 grid gap-2 text-sm md:grid-cols-2">
-                <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                    Entry pathway
+                  <div>
+                    <h4 className="text-lg font-semibold text-zinc-950">
+                      {match.title}
+                    </h4>
+                    <p className="mt-0.5 text-sm text-zinc-500">
+                      {match.sector} · {match.opportunityType} · ISCO{" "}
+                      {match.iscoGroup}
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2 text-center">
+                  <p className="text-2xl font-bold text-cyan-800">
+                    {Math.round(match.score * 100)}%
                   </p>
-                  <p className="mt-1 leading-6 text-zinc-700">
-                    {match.trainingPathway}
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-600">
+                    Fit score
                   </p>
                 </div>
-                <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                    Local constraint
+              </div>
+
+              {/* Signal breakdown bar */}
+              <div className="mt-4 grid gap-1.5">
+                {Object.entries(match.scoreParts).map(([key, value]) => (
+                  <div key={key} className="flex items-center gap-2 text-xs">
+                    <span className="w-[7.5rem] shrink-0 text-zinc-500">
+                      {signalLabel(key)}
+                    </span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                      <div
+                        className={`h-full rounded-full ${barColor(value)}`}
+                        style={{ width: barPercent(value) }}
+                      />
+                    </div>
+                    <span
+                      className={`w-16 text-right font-medium ${strengthColor(value)}`}
+                    >
+                      {strengthWord(value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Skills section */}
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                {/* Skills you have */}
+                <div className="rounded-md border border-emerald-200 bg-emerald-50/50 px-3 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-800">
+                    Skills you have ({match.matchedKeywords.length}/
+                    {match.skillKeywords.length})
                   </p>
-                  <p className="mt-1 leading-6 text-zinc-700">
-                    {match.locationFit}
+                  {match.matchedKeywords.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {match.matchedKeywords.map((kw) => (
+                        <span
+                          key={kw}
+                          className="rounded-full border border-emerald-300 bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-900"
+                        >
+                          ✓ {kw}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-emerald-700">
+                      No direct keyword matches yet — your broader experience
+                      may still transfer.
+                    </p>
+                  )}
+                </div>
+
+                {/* Skills you still need */}
+                <div className="rounded-md border border-amber-200 bg-amber-50/50 px-3 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-800">
+                    Skills to develop ({missingKeywords.length})
                   </p>
+                  {missingKeywords.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {missingKeywords.map((kw) => (
+                        <span
+                          key={kw}
+                          className="rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-900"
+                        >
+                          ○ {kw}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-amber-700">
+                      You already cover all identified skill keywords!
+                    </p>
+                  )}
                 </div>
               </div>
-              {match.relatedOccupationLabels.length > 0 ? (
-                <p className="mt-3 text-xs leading-5 text-zinc-500">
-                  Related ESCO job match:{" "}
-                  {match.relatedOccupationLabels.join(", ")}
+
+              {/* Why this is good for you */}
+              <div className="mt-4 rounded-md border border-cyan-200 bg-cyan-50/50 px-3 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-800">
+                  Why this opportunity fits you
                 </p>
-              ) : null}
-            </div>
-            <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-700">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                Local fit
-              </p>
-              <p className="mt-2 text-3xl font-semibold text-cyan-800">
-                {Math.round(match.score * 100)}%
-              </p>
-            </div>
-          </li>
-        ))}
+                <ul className="mt-2 list-inside list-disc space-y-1 text-sm leading-6 text-cyan-950">
+                  {whyReasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ul>
+                {match.relatedOccupationLabels.length > 0 ? (
+                  <p className="mt-2 text-xs text-cyan-700">
+                    Related ESCO occupations:{" "}
+                    {match.relatedOccupationLabels.join(", ")}
+                  </p>
+                ) : null}
+              </div>
+
+              {/* How to get missing skills */}
+              {missingKeywords.length > 0 ? (
+                <div className="mt-4 rounded-md border border-violet-200 bg-violet-50/50 px-3 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-violet-800">
+                    How to close the skill gap
+                  </p>
+                  <div className="mt-2 space-y-2 text-sm leading-6 text-violet-950">
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5 shrink-0 text-violet-500">
+                        📋
+                      </span>
+                      <p>
+                        <span className="font-semibold">Entry pathway:</span>{" "}
+                        {match.trainingPathway}
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5 shrink-0 text-violet-500">
+                        🎓
+                      </span>
+                      <p>
+                        <span className="font-semibold">Education needed:</span>{" "}
+                        {match.requiredEducation}
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5 shrink-0 text-violet-500">
+                        📍
+                      </span>
+                      <p>
+                        <span className="font-semibold">
+                          Local training access:
+                        </span>{" "}
+                        {match.trainingAccess}/5 —{" "}
+                        {match.trainingAccess >= 4
+                          ? "Good availability in your area"
+                          : match.trainingAccess >= 3
+                            ? "Some options available locally"
+                            : "Limited local options — online or travel may be needed"}
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5 shrink-0 text-violet-500">
+                        🔧
+                      </span>
+                      <p>
+                        <span className="font-semibold">
+                          Skills to focus on:
+                        </span>{" "}
+                        {missingKeywords.join(", ")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50/50 px-3 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-800">
+                    Ready to apply
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-emerald-900">
+                    Your profile covers all skill keywords for this opportunity.
+                    Entry pathway: {match.trainingPathway}
+                  </p>
+                </div>
+              )}
+
+              {/* Location context */}
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-500">
+                <span className="rounded border border-zinc-200 bg-zinc-50 px-2 py-1">
+                  📍 {match.locationFit}
+                </span>
+                <span className="rounded border border-zinc-200 bg-zinc-50 px-2 py-1">
+                  💰 {match.wageFloor}
+                </span>
+                <span className="rounded border border-zinc-200 bg-zinc-50 px-2 py-1">
+                  📊 Demand {match.demandLevel}/5
+                </span>
+                <span className="rounded border border-zinc-200 bg-zinc-50 px-2 py-1">
+                  🤖 Automation {match.automationExposure}/5
+                </span>
+              </div>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
