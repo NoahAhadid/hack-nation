@@ -1,40 +1,99 @@
-# ESCO Semantic Search
+# Analytical Dataplane for skill and opportunity discovery (SkillRoute)
 
-Upload ESCO `skills_en.csv` to Supabase, embed each skill's `preferredLabel` plus `altLabels`, and query the database with semantic search.
+SkillRoute is a hackathon prototype for converting informal, real-life
+experience into structured skill profiles and practical opportunity matches.
 
-## Overview
+Built for the **UNMAPPED** challenge, it helps surface skills that may not be
+represented by certificates, formal employment history, or a traditional CV.
 
-The import flow stores ESCO skills in Supabase with a `pgvector` embedding. The embedding text is:
+## What Is in This Repo
 
-```text
-preferredLabel
-altLabel 1
-altLabel 2
-...
-```
+This repository contains the product prototype, supporting data pipeline, and
+pitch materials:
 
-Queries are embedded with the same model and matched against the stored skill vectors.
+- `web/`: main Next.js application for the SkillRoute experience
+- `pitch/`: separate Next.js pitch deck
+- `scripts/`: ESCO/ISCO import, cleanup, seed, and search utilities
+- `supabase/`: Postgres schema, pgvector setup, tables, indexes, and RPCs
+- `ESCO dataset - v1.2.1 - classification - en - csv/`: source ESCO/ISCO CSVs
+- `05 - World Bank - Unmapped.docx - Google Docs.pdf`: challenge reference doc
+
+## Main App
+
+The main app lives in `web/` and includes:
+
+- chat-based skill discovery with Milo
+- skill profile generation from user intake conversations
+- ESCO semantic skill search
+- ISCO occupation mapping
+- opportunity matching for jobs, training, and self-employment pathways
+- youth-facing profile and opportunity views
+- admin/program-facing protocol and aggregate views
+- econometric and labor-market dashboards
+
+Important app routes and modules:
+
+- `web/src/app/page.tsx`: main entry point
+- `web/src/app/search-client.tsx`: primary search/profile client flow
+- `web/src/app/search/`: Milo chat, results, profile, opportunity, and dashboard UI
+- `web/src/app/api/search/route.ts`: ESCO semantic search API
+- `web/src/app/api/skill-profile/`: intake and generated profile APIs
+- `web/src/app/api/occupations/route.ts`: occupation lookup API
+- `web/src/app/api/econometric-data/route.ts`: dashboard data API
+- `web/src/lib/supabase/`: Supabase client/server helpers
+
+## Tech Stack
+
+- Next.js 16
+- React 19
+- TypeScript
+- OpenAI models and embeddings
+- Supabase Postgres with pgvector
+- ESCO taxonomy data
+- ISCO occupation classification data
+- Tailwind CSS and shadcn-style UI components
+
+## Data Pipeline
+
+Root-level scripts load and query the ESCO/ISCO dataset:
+
+- `scripts/setup-db.js`: applies `supabase/schema.sql`
+- `scripts/import-skills.js`: imports ESCO skills and OpenAI embeddings
+- `scripts/import-occupations.js`: imports occupations and skill relations
+- `scripts/search-skills.js`: runs semantic skill search from the CLI
+- `scripts/seed-demo-data.js`: inserts demo application data
+- `scripts/filter_isco_rows.py`: filters ISCO labor-market rows
+- `scripts/clean_isco_occupation_csv.py`: cleans ISCO occupation CSV data
+
+The data flow is:
+
+1. A user talks to Milo about their background, experience, education, country,
+   language, work authorization, and confidence.
+2. The backend extracts skills and evidence from the conversation.
+3. Extracted skills are embedded and matched against ESCO skills in Supabase.
+4. Related occupations are mapped through ISCO data.
+5. The app generates a skill profile and suggests relevant local pathways.
 
 ## Getting Started
 
-Install dependencies:
+Install root dependencies:
 
 ```bash
 npm install
 ```
 
-Create a local environment file:
+Create the root environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Fill in:
+Set the required values:
 
 - `OPENAI_API_KEY`
 - `DATABASE_URL`
-
-Use the Supabase pooler connection string if the direct database host does not resolve on your network.
+- `ESCO_CSV_PATH`
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` if using Supabase writes from scripts
 
 Create the Supabase schema:
 
@@ -42,27 +101,22 @@ Create the Supabase schema:
 npm run db:setup
 ```
 
-If you do not want to use `DATABASE_URL`, paste `supabase/schema.sql` into the Supabase SQL editor and run it there.
-
-Import the ESCO skills CSV:
+Import ESCO skills and occupation data:
 
 ```bash
 npm run import:skills
-```
-
-Import the ESCO occupations and skill-to-occupation relation CSVs:
-
-```bash
 npm run import:occupations
 ```
 
-Test semantic search:
+Run a semantic search from the CLI:
 
 ```bash
-npm run search -- "manage a team of musicians"
+npm run search -- "repair bicycle brakes and talk to customers"
 ```
 
-Run the Next.js search UI:
+## Web App
+
+Install and run the Next.js app:
 
 ```bash
 cd web
@@ -71,47 +125,91 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Fill `web/.env.local` with `OPENAI_API_KEY`. The Supabase URL and publishable key are already shown in `web/.env.example`.
+Open `http://localhost:3000`.
 
-## Project Structure
+Required web environment variables:
 
-```text
-.
-├── ESCO dataset - v1.2.1 - classification - en - csv/
-│   └── skills_en.csv
-├── scripts/
-│   ├── config.js
-│   ├── import-skills.js
-│   ├── search-skills.js
-│   └── setup-db.js
-├── supabase/
-│   └── schema.sql
-├── web/
-│   └── Next.js search UI
-├── .env.example
-├── package.json
-└── README.md
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `OPENAI_API_KEY`
+
+## Pitch Deck
+
+The pitch deck is a separate Next.js app:
+
+```bash
+cd pitch
+npm install
+npm run dev
 ```
 
-## Useful Options
+## Useful Commands
 
-- `IMPORT_LIMIT=1000 npm run import:skills` imports a smaller test sample.
-- `IMPORT_LIMIT=1000 npm run import:occupations` imports a smaller occupation/relation sample.
-- `MATCH_COUNT=20 npm run search -- "your query"` returns more matches.
-- `EMBEDDING_BATCH_SIZE=50` lowers OpenAI request batch size if needed.
-- `UPSERT_BATCH_SIZE=50` lowers Supabase write batch size if needed.
+```bash
+npm run db:setup
+npm run import:skills
+npm run import:occupations
+npm run search -- "your skill query"
+cd web && npm run dev
+cd web && npm run build
+cd web && npm run lint
+cd pitch && npm run dev
+```
+
+Optional import settings:
+
+- `IMPORT_LIMIT=1000` imports a smaller dataset sample
+- `MATCH_COUNT=20` returns more semantic search results
+- `EMBEDDING_BATCH_SIZE=50` lowers OpenAI embedding batch size
+- `UPSERT_BATCH_SIZE=50` lowers Supabase write batch size
 
 ## Database
 
-The main table is `public.esco_skills`.
+Main tables:
 
-The main occupation tables are `public.esco_occupations` and `public.esco_occupation_skill_relations`.
+- `public.esco_skills`
+- `public.esco_occupations`
+- `public.esco_occupation_skill_relations`
+- `public.user_sessions`
+- `public.skill_profiles`
+- `public.user_identified_skills`
+- `public.user_opportunities`
 
-The search RPCs are:
+Search RPCs:
 
 ```sql
 public.match_esco_skills(query_embedding vector(1536), match_count int)
 public.find_esco_skills_by_label(skill_label text)
 public.suggest_esco_skills_by_label(skill_label text, match_count int)
 public.get_esco_occupations_for_skills(skill_uris text[])
+```
+
+Analytics RPCs:
+
+```sql
+public.get_top_skills(limit_count int)
+public.get_top_opportunities(limit_count int)
+```
+
+## Project Structure
+
+```text
+.
+├── 05 - World Bank - Unmapped.docx - Google Docs.pdf
+├── ESCO dataset - v1.2.1 - classification - en - csv/
+├── MyData/
+├── pitch/
+│   └── app/
+├── plans/
+├── scripts/
+├── supabase/
+│   └── schema.sql
+├── web/
+│   └── src/
+│       ├── app/
+│       ├── components/
+│       └── lib/
+├── esco_skill_to_occupations.py
+├── package.json
+└── README.md
 ```
