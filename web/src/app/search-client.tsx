@@ -112,6 +112,7 @@ export function SearchClient({
 
       const nextSurveyData: SurveyData = {
         age: payload.age,
+        sex: payload.sex,
         location: payload.location,
         languages: payload.languages,
         work_authorization: payload.work_authorization,
@@ -169,7 +170,7 @@ export function SearchClient({
         {
           role: "assistant",
           content:
-            "I could not read that message reliably. Please send the missing details again, for example: age 27, Hamburg Germany, German C1, EU work permit, bachelor, 3 years experience, favorite skill data analysis.",
+            "I could not read that message reliably. Please send the missing details again, for example: age 27, female, Germany, German C1, EU work permit, bachelor, 3 years experience, favorite skill data analysis.",
         },
       ]);
       setProfileStatus("");
@@ -214,6 +215,7 @@ export function SearchClient({
           locale: "en",
           context: {
             age: data.age,
+            sex: data.sex,
             location: data.location,
             languages: data.languages,
             workAuthorization: data.work_authorization,
@@ -417,6 +419,13 @@ export function SearchClient({
     setViewPhase(step === "profile" ? "results" : "opportunities");
   }
 
+  function viewOpportunitiesFromResults() {
+    setViewPhase("opportunities");
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    });
+  }
+
   return (
     <div className="min-h-screen bg-[#f7f8f5] text-zinc-950">
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
@@ -490,7 +499,7 @@ export function SearchClient({
                 }
                 onDownloadProfileJson={downloadProfileJson}
                 onResetSurvey={resetSurvey}
-                onViewOpportunities={() => setViewPhase("opportunities")}
+                onViewOpportunities={viewOpportunitiesFromResults}
                 onViewProfileJson={viewProfileJson}
               />
             ) : null}

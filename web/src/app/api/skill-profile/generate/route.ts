@@ -10,6 +10,7 @@ type ChatMessage = {
 
 type ProfileContext = {
   age?: number;
+  sex?: string;
   city?: string;
   location?: string;
   country?: string;

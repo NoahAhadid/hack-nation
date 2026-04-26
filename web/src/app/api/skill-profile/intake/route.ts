@@ -8,6 +8,7 @@ type ChatMessage = {
 
 type RequiredField =
   | "age"
+  | "sex"
   | "location"
   | "languages"
   | "work_authorization"
@@ -18,6 +19,7 @@ type RequiredField =
 
 type SurveyData = {
   age: number | null;
+  sex: string;
   location: string;
   languages: string[];
   work_authorization: string;
@@ -52,6 +54,7 @@ type IntakeResponse = SurveyData & {
 
 const requiredFieldLabels: Record<RequiredField, string> = {
   age: "age",
+  sex: "sex",
   location: "country of residence",
   languages: "languages and levels",
   work_authorization: "work authorization",
@@ -63,6 +66,7 @@ const requiredFieldLabels: Record<RequiredField, string> = {
 
 const emptySurveyData: SurveyData = {
   age: null,
+  sex: "",
   location: "",
   languages: [],
   work_authorization: "",
@@ -96,6 +100,7 @@ const intakeSchema = {
     additionalProperties: false,
     required: [
       "age",
+      "sex",
       "location",
       "languages",
       "work_authorization",
@@ -126,6 +131,11 @@ const intakeSchema = {
     ],
     properties: {
       age: { type: ["integer", "null"] },
+      sex: {
+        type: "string",
+        description:
+          "The user's self-reported sex or gender marker, such as female, male, non-binary, or prefer not to say.",
+      },
       location: {
         type: "string",
         description:
@@ -190,6 +200,7 @@ const intakeSchema = {
           type: "string",
           enum: [
             "age",
+            "sex",
             "location",
             "languages",
             "work_authorization",
@@ -325,6 +336,7 @@ function normalizeSurveyData(value: unknown): SurveyData {
 
   return {
     age,
+    sex: normalizeString(data.sex),
     location: normalizeString(data.location),
     languages: normalizeLanguageArray(data.languages),
     work_authorization: normalizeString(data.work_authorization),
@@ -366,6 +378,7 @@ function parseJson<T>(value: string | null | undefined, fallback: T): T {
 function missingSurveyFields(data: SurveyData): RequiredField[] {
   return [
     !data.age ? "age" : "",
+    !data.sex ? "sex" : "",
     !data.location ? "location" : "",
     data.languages.length === 0 ? "languages" : "",
     !data.work_authorization ? "work_authorization" : "",
@@ -441,6 +454,7 @@ function buildResultRequestResponse(data: SurveyData): IntakeResponse {
 function questionForMissingField(field: RequiredField) {
   const questions: Record<RequiredField, string> = {
     age: "To place the profile properly, how old are you?",
+    sex: "What sex or gender should I use for the profile?",
     location: "So I can match the right opportunities, which country do you live in?",
     languages: "What languages do you feel comfortable using, and roughly at what level?",
     work_authorization: "For the work side, are you allowed to work where you live, or would you need permission or sponsorship?",
@@ -507,6 +521,7 @@ function sanitizeIntakeResponse(
       value.age <= 80
         ? value.age
         : fallbackData.age,
+    sex: normalizeString(value.sex) || fallbackData.sex,
     location: normalizeString(value.location) || fallbackData.location,
     languages: mergeArrays(
       fallbackData.languages,
@@ -630,7 +645,7 @@ export async function POST(request: Request) {
       {
         role: "system",
         content:
-          "You are the intake brain for a skill discovery engine and you speak like Milo, a calm conversational guide. Your job is to classify every user input into the predefined dataset. Keep all existing collected data unless the newest user message clearly corrects it. Important required fields are: age; country where the user lives; languages with level; work authorization; educational level; favorite or most fun skill; total years of experience; confidence in relevant skills. Optional fields should be captured when present: informal experience, demonstrated competencies, availability, work mode preference, target outcome, target roles, target industries, time horizon, priority tradeoff, current role title, current industry, domain years, seniority, team lead experience, key responsibilities, raw user-mentioned skills. Store the user's country of residence in the location field. Do not ask for a city; if the user provides a city or region, infer the country only when it is obvious, otherwise ask which country they live in. Do not copy a city/place into skills. A skill must not be copied into location. If one important field is missing and the user sends a single phrase, classify the phrase as country only when it is clearly a country. If the user says they want the result now, wants to go on, asks to stop the questions, says something like stop it now, says they do not want to answer anymore, or says to use current data, set user_requested_result and ready_to_generate true even if important fields are missing. For assistant_message, sound like a real chat: briefly respond to what the user said, name or reflect one concrete detail when possible, then ask one natural follow-up for the next missing field. Keep it to one or two short sentences, do not list missing fields, and do not write a long explanation.",
+          "You are the intake brain for a skill discovery engine and you speak like Milo, a calm conversational guide. Your job is to classify every user input into the predefined dataset. Keep all existing collected data unless the newest user message clearly corrects it. Important required fields are: age; sex or gender marker; country where the user lives; languages with level; work authorization; educational level; favorite or most fun skill; total years of experience; confidence in relevant skills. Optional fields should be captured when present: informal experience, demonstrated competencies, availability, work mode preference, target outcome, target roles, target industries, time horizon, priority tradeoff, current role title, current industry, domain years, seniority, team lead experience, key responsibilities, raw user-mentioned skills. Store the user's country of residence in the location field. Do not ask for a city; if the user provides a city or region, infer the country only when it is obvious, otherwise ask which country they live in. Do not copy a city/place into skills. A skill must not be copied into location. If one important field is missing and the user sends a single phrase, classify the phrase as country only when it is clearly a country, or as sex when it is clearly a sex or gender marker. If sex is missing, ask respectfully and allow answers like male, female, non-binary, or prefer not to say. If the user says they want the result now, wants to go on, asks to stop the questions, says something like stop it now, says they do not want to answer anymore, or says to use current data, set user_requested_result and ready_to_generate true even if important fields are missing. For assistant_message, sound like a real chat: briefly respond to what the user said, name or reflect one concrete detail when possible, then ask one natural follow-up for the next missing field. Keep it to one or two short sentences, do not list missing fields, and do not write a long explanation.",
       },
       {
         role: "user",
@@ -644,9 +659,9 @@ export async function POST(request: Request) {
           examples: [
             {
               input:
-                "I am 27, in Hamburg Germany, German C1 and English B2, EU citizen, bachelor, 3 years, most fun skill is data analysis, confident in Python 4/5, helped friends build websites and built dashboards.",
+                "I am 27, female, in Hamburg Germany, German C1 and English B2, EU citizen, bachelor, 3 years, most fun skill is data analysis, confident in Python 4/5, helped friends build websites and built dashboards.",
               output_notes:
-                "age 27; location Germany; languages German C1 and English B2; work_authorization EU citizen; educational_level bachelor; years_experience_total 3 years; favorite_skill data analysis; skill_confidence Python 4/5; informal_experience helped friends build websites; demonstrated_competencies built dashboards; skills include data analysis, Python, websites, dashboards.",
+                "age 27; sex female; location Germany; languages German C1 and English B2; work_authorization EU citizen; educational_level bachelor; years_experience_total 3 years; favorite_skill data analysis; skill_confidence Python 4/5; informal_experience helped friends build websites; demonstrated_competencies built dashboards; skills include data analysis, Python, websites, dashboards.",
             },
             {
               current: {

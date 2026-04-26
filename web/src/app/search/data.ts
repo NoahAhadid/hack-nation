@@ -371,6 +371,7 @@ export const initialOpportunityProtocols: OpportunityProtocolConfig[] = [
 
 export const emptySurveyData: SurveyData = {
   age: null,
+  sex: "",
   location: "",
   languages: [],
   work_authorization: "",
@@ -397,7 +398,7 @@ export const emptySurveyData: SurveyData = {
 };
 
 export const firstSurveyPrompt =
-  "Hi, I am Milo. We can do this like a quick conversation. Tell me a little about yourself: what you are good at, what you enjoy doing, and the country you live in. I will pick up the details as we go.";
+  "Hi, I am Milo. We can do this like a quick conversation. Tell me a little about yourself: what you are good at, what you enjoy doing, your sex, and the country you live in. I will pick up the details as we go.";
 
 export const amaraDemoMessages: ChatMessage[] = [
   {
@@ -413,6 +414,7 @@ export const amaraDemoMessages: ChatMessage[] = [
 
 export const amaraSurveyData: SurveyData = {
   age: 22,
+  sex: "female",
   location: "Accra, Ghana",
   languages: ["English fluent", "Twi conversational"],
   work_authorization: "Can work locally and remotely",

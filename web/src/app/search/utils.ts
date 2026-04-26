@@ -13,6 +13,7 @@ import type {
 
 export const requiredFieldLabels: Record<RequiredSurveyField, string> = {
   age: "Age",
+  sex: "Sex",
   location: "Country",
   languages: "Languages",
   work_authorization: "Work authorization",
@@ -24,6 +25,7 @@ export const requiredFieldLabels: Record<RequiredSurveyField, string> = {
 
 export const requiredFieldKeys: RequiredSurveyField[] = [
   "age",
+  "sex",
   "location",
   "languages",
   "work_authorization",
@@ -36,6 +38,7 @@ export const requiredFieldKeys: RequiredSurveyField[] = [
 export function missingSurveyFields(data: SurveyData): RequiredSurveyField[] {
   return [
     !data.age ? "age" : "",
+    !data.sex ? "sex" : "",
     !data.location ? "location" : "",
     (data.languages?.length ?? 0) === 0 ? "languages" : "",
     !data.work_authorization ? "work_authorization" : "",
@@ -74,6 +77,7 @@ export function messagesForProfile(messages: ChatMessage[], data: SurveyData) {
       role: "user" as const,
       content: [
         `Age: ${data.age ?? "unknown"}.`,
+        `Sex: ${data.sex || "unknown"}.`,
         `Country: ${data.location || "unknown"}.`,
         `Languages: ${(data.languages ?? []).join(", ") || "unknown"}.`,
         `Work authorization: ${data.work_authorization || "unknown"}.`,
@@ -129,6 +133,8 @@ export function requiredFieldValue(
   switch (field) {
     case "age":
       return data.age ? String(data.age) : "";
+    case "sex":
+      return data.sex;
     case "location":
       return data.location;
     case "languages":

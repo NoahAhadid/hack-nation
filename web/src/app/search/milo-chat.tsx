@@ -52,28 +52,30 @@ export function MiloChat({
   return (
     <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-sm">
-        <div className="border-b border-zinc-200 bg-zinc-950 px-4 py-4 text-white">
+        <div className="border-b border-zinc-200 bg-[#f0e4d8] px-4 py-4">
           <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h2 className="text-3xl font-semibold tracking-normal">Milo</h2>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+              <h2 className="text-3xl font-semibold tracking-normal text-zinc-950">
+                Milo
+              </h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
                 Conversational Skill Discovery Engine
               </p>
             </div>
-            <span className="rounded border border-cyan-300/40 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+            <span className="rounded border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-950">
               Agent online
             </span>
           </div>
         </div>
 
-        <div className="max-h-[32rem] space-y-3 overflow-y-auto bg-[#f9faf7] px-4 py-4">
+        <div className="max-h-[32rem] space-y-3 overflow-y-auto bg-[#f7efe6] px-4 py-4">
           {profileMessages.map((message, index) => (
             <div
               key={`${message.role}-${index}`}
               className={
                 message.role === "user"
-                  ? "ml-auto max-w-[88%] rounded-md bg-cyan-800 px-3 py-2 text-sm leading-6 text-white"
-                  : "max-w-[88%] rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm leading-6 text-zinc-800 shadow-sm"
+                  ? "ml-auto max-w-[88%] rounded-md bg-[#a44e3b] px-3 py-2 text-sm leading-6 text-[#fffaf4] shadow-sm"
+                  : "max-w-[88%] rounded-md border border-zinc-200 bg-[#fffaf4] px-3 py-2 text-sm leading-6 text-zinc-800 shadow-sm"
               }
             >
               {message.role === "assistant" ? (
@@ -99,14 +101,14 @@ export function MiloChat({
                 event.currentTarget.form?.requestSubmit();
               }
             }}
-            placeholder="Tell Milo: country, education, languages, work permission, experience, tools, and skills..."
+            placeholder="Tell Milo: sex, country, education, languages, work permission, experience, tools, and skills..."
             className="min-h-28 resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-base leading-6 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-700/15"
             disabled={isAnalyzingIntake || isGeneratingProfile}
           />
           <div className="flex flex-col gap-2">
             <Button
               type="submit"
-              className="h-11 rounded-md bg-zinc-950 px-5 text-white hover:bg-cyan-800"
+              className="h-11 rounded-md bg-[#a44e3b] px-5 text-[#fffaf4] hover:bg-[#7f392e]"
               disabled={isAnalyzingIntake || isGeneratingProfile}
             >
               {isAnalyzingIntake ? "Reading" : "Send to Milo"}
@@ -125,7 +127,7 @@ export function MiloChat({
         <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 px-3 py-3">
           <Button
             type="button"
-            className="h-11 rounded-md bg-cyan-800 px-5 text-white hover:bg-zinc-950"
+            className="h-11 rounded-md bg-zinc-950 px-5 text-white hover:bg-[#7f392e]"
             disabled={isAnalyzingIntake || isGeneratingProfile}
             onClick={onContinueFromHere}
           >

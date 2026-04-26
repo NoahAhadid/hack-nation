@@ -59,13 +59,8 @@ export function ResultsView({
           ESCO-grounded skills for {surveyData.location || "this profile"}
         </h2>
         <p className="mt-3 max-w-4xl text-sm leading-6 text-cyan-950">
-          ESCO is the European Skills, Competences, Qualifications and
-          Occupations taxonomy. This page turns a person&apos;s informal
-          experience into standardized ESCO skill links, lets the user accept or
-          decline each match, and then uses the accepted profile to explain
-          fitting job and opportunity paths. It is needed because lived
-          experience is often real but hard to compare across training, hiring,
-          and support systems.
+          ESCO turns informal experience into standardized skills, helping users
+          confirm matches and discover fitting job paths.
         </p>
       </div>
 
@@ -369,23 +364,23 @@ export function ResultsView({
         </div>
       </section>
 
-      <section className="rounded-md border border-cyan-200 bg-cyan-50 shadow-sm">
+      <section className="rounded-md border border-[#cdb8d8] bg-[#efe7f2] shadow-sm">
         <div className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-800">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6f4a7c]">
               Next view
             </p>
             <h3 className="mt-1 text-xl font-semibold text-zinc-950">
               Your skill opportunities
             </h3>
-            <p className="mt-1 text-sm leading-6 text-cyan-950">
+            <p className="mt-1 text-sm leading-6 text-[#3f3047]">
               Continue to the dedicated opportunity view to see local routes and
               ESCO job matches based on the accepted skills.
             </p>
           </div>
           <Button
             type="button"
-            className="h-10 rounded-md bg-zinc-950 px-4 text-white hover:bg-cyan-800"
+            className="h-10 rounded-md bg-[#6f4a7c] px-4 text-[#fffaf4] shadow-sm hover:bg-[#593962]"
             onClick={onViewOpportunities}
           >
             <BriefcaseBusiness />

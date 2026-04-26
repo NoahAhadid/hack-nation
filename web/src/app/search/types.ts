@@ -5,6 +5,7 @@ export type ChatMessage = {
 
 export type RequiredSurveyField =
   | "age"
+  | "sex"
   | "location"
   | "languages"
   | "work_authorization"
@@ -15,6 +16,7 @@ export type RequiredSurveyField =
 
 export type SurveyData = {
   age: number | null;
+  sex: string;
   location: string;
   languages: string[];
   work_authorization: string;

@@ -4,17 +4,21 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 import { OpportunityDashboard } from "./opportunity-dashboard";
+import { signalWeightLabels } from "./data";
 import { identifiedSkillsForProfile } from "./profile-view-utils";
 import type {
   OpportunityProtocolConfig,
   SkillDecision,
   SkillProfile,
+  SignalWeightKey,
   SurveyData,
 } from "./types";
 import {
+  buildLocalOpportunityMatches,
   formatCoveragePercent,
   formatCoverageValue,
   formatScoreValue,
+  sourceLabelFor,
 } from "./utils";
 
 type SkillOpportunitiesViewProps = {
@@ -57,6 +61,11 @@ type IscoTrendLookup = {
   trend?: IscoTrendResponse;
   error?: string;
   suggestions?: string[];
+};
+
+type IscoTrendLookupState = {
+  key: string;
+  lookups: IscoTrendLookup[];
 };
 
 function externalHref(value: string) {
@@ -105,8 +114,19 @@ export function SkillOpportunitiesView({
     (skill) => skillDecisions[skill.concept_uri] !== "declined",
   );
   const topJobs = currentProfile.occupation_paths;
-  const trendSex = "Male";
-  const trendLocation = surveyData.location.trim();
+  const normalizedSex = surveyData.sex.trim().toLowerCase();
+  const trendSex =
+    normalizedSex === "female"
+      ? "Female"
+      : normalizedSex === "male"
+        ? "Male"
+        : "Total";
+  const trendLocationParts = surveyData.location
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const trendLocation =
+    trendLocationParts[trendLocationParts.length - 1] ?? "";
   const topTrendJobs = useMemo(
     () =>
       topJobs
@@ -123,22 +143,44 @@ export function SkillOpportunitiesView({
         ),
     [topJobs],
   );
-  const [trendLookups, setTrendLookups] = useState<IscoTrendLookup[]>([]);
+  const trendLookupKey = useMemo(
+    () =>
+      [
+        trendLocation,
+        trendSex,
+        ...topTrendJobs.map(
+          ({ path, majorCode }) => `${majorCode}:${path.occupation_uri}`,
+        ),
+      ].join("|"),
+    [topTrendJobs, trendLocation, trendSex],
+  );
+  const loadingTrendLookups = useMemo<IscoTrendLookup[]>(
+    () =>
+      topTrendJobs.map(({ path, majorCode }) => ({
+        path,
+        majorCode,
+        status: "loading" as const,
+      })),
+    [topTrendJobs],
+  );
+  const [trendLookupState, setTrendLookupState] =
+    useState<IscoTrendLookupState>({
+      key: "",
+      lookups: [],
+    });
+  const trendLookups =
+    trendLocation && topTrendJobs.length > 0
+      ? trendLookupState.key === trendLookupKey
+        ? trendLookupState.lookups
+        : loadingTrendLookups
+      : [];
 
   useEffect(() => {
     if (!trendLocation || topTrendJobs.length === 0) {
-      setTrendLookups([]);
       return;
     }
 
     let isCurrent = true;
-    setTrendLookups(
-      topTrendJobs.map(({ path, majorCode }) => ({
-        path,
-        majorCode,
-        status: "loading",
-      })),
-    );
 
     void Promise.all(
       topTrendJobs.map(async ({ path, majorCode }) => {
@@ -181,13 +223,27 @@ export function SkillOpportunitiesView({
         }
       }),
     ).then((lookups) => {
-      if (isCurrent) setTrendLookups(lookups);
+      if (isCurrent) {
+        setTrendLookupState({
+          key: trendLookupKey,
+          lookups,
+        });
+      }
     });
 
     return () => {
       isCurrent = false;
     };
-  }, [topTrendJobs, trendLocation]);
+  }, [topTrendJobs, trendLocation, trendLookupKey, trendSex]);
+  const localMatches = buildLocalOpportunityMatches(
+    selectedOpportunityConfig,
+    surveyData,
+    acceptedSkills,
+    topJobs,
+  );
+  const visibleSignals = selectedOpportunityConfig.econometricSignals.filter(
+    (signal) => signal.userVisible,
+  );
 
   return (
     <section className="grid gap-5">
@@ -394,8 +450,138 @@ export function SkillOpportunitiesView({
 
           <details className="rounded-md border border-zinc-300 bg-white shadow-sm">
             <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-950">
-              Step 2: ISCO employment trend analysis
+              Step 2: local route scoring and ISCO trend analysis
             </summary>
+            <div className="grid gap-4 border-t border-zinc-200 px-4 py-4">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                    Local route scoring trace
+                  </p>
+                  <h4 className="mt-1 font-semibold text-zinc-950">
+                    {selectedOpportunityConfig.contextName}
+                  </h4>
+                  <p className="mt-2 text-sm leading-6 text-zinc-700">
+                    Local opportunity records are ranked by matching accepted
+                    skill evidence against route keywords, then combining local
+                    demand, wage, growth, automation resilience, and training
+                    access weights.
+                  </p>
+                </div>
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                    Profile signals used
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-cyan-800">
+                    {acceptedSkills.length}
+                  </p>
+                  <p className="text-xs text-zinc-500">accepted ESCO skills</p>
+                </div>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {(Object.keys(signalWeightLabels) as SignalWeightKey[]).map(
+                  (field) => (
+                    <div
+                      key={field}
+                      className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-zinc-700">
+                          {signalWeightLabels[field]}
+                        </p>
+                        <p className="font-semibold text-zinc-950">
+                          {selectedOpportunityConfig.signalWeights[field]}%
+                        </p>
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+
+              <div className="grid gap-3 lg:grid-cols-3">
+                {visibleSignals.map((signal) => (
+                  <article
+                    key={signal.id}
+                    className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                      {signal.category}
+                    </p>
+                    <h4 className="mt-1 text-sm font-semibold text-zinc-950">
+                      {signal.label}
+                    </h4>
+                    <p className="mt-2 text-sm leading-6 text-zinc-700">
+                      {signal.interpretation}
+                    </p>
+                    <p className="mt-2 border-t border-zinc-200 pt-2 text-xs text-zinc-500">
+                      Source:{" "}
+                      {sourceLabelFor(
+                        selectedOpportunityConfig,
+                        signal.sourceId,
+                      )}
+                    </p>
+                  </article>
+                ))}
+              </div>
+
+              {localMatches.length === 0 ? (
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
+                  No local opportunity records are configured for this protocol.
+                </div>
+              ) : (
+                <ol className="divide-y divide-zinc-200 rounded-md border border-zinc-200">
+                  {localMatches.map((match, index) => (
+                    <li
+                      key={match.id}
+                      className="grid gap-3 px-4 py-4 lg:grid-cols-[3rem_minmax(0,1fr)_12rem]"
+                    >
+                      <p className="text-2xl font-semibold text-cyan-800">
+                        {index + 1}
+                      </p>
+                      <div>
+                        <h4 className="font-semibold text-zinc-950">
+                          {match.title}
+                        </h4>
+                        <p className="mt-1 text-sm text-zinc-600">
+                          {match.sector} - {match.opportunityType}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {match.matchedKeywords.length > 0 ? (
+                            match.matchedKeywords.map((keyword) => (
+                              <span
+                                key={`${match.id}-${keyword}`}
+                                className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-950"
+                              >
+                                {keyword}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-950">
+                              No direct keyword match
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-zinc-700">
+                          Training path: {match.trainingPathway}
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                          Local score
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold text-cyan-800">
+                          {Math.round(match.score * 100)}%
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          ISCO {match.iscoGroup}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
             {!trendLocation ? (
               <div className="border-t border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500">
                 No location is available for the trend lookup.
@@ -408,7 +594,7 @@ export function SkillOpportunitiesView({
             ) : (
               <div className="grid gap-3 border-t border-zinc-200 px-4 py-4">
                 <div className="rounded border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-950">
-                  Location: {trendLocation} · Sex: {trendSex} · Top{" "}
+                  Location: {trendLocation} - Sex: {trendSex} - Top{" "}
                   {topTrendJobs.length} Step 1 matches
                 </div>
                 <div className="grid gap-3">
@@ -423,7 +609,7 @@ export function SkillOpportunitiesView({
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                              Match {index + 1} · ISCO-08 major code{" "}
+                              Match {index + 1} - ISCO-08 major code{" "}
                               {lookup.majorCode}
                             </p>
                             <h4 className="mt-1 font-semibold text-zinc-950">
@@ -466,7 +652,7 @@ export function SkillOpportunitiesView({
                                 {formatTrendValue(trend?.latest?.value)}
                               </p>
                               <p className="text-xs text-zinc-500">
-                                {trend?.latest?.year ?? "-"} ·{" "}
+                                {trend?.latest?.year ?? "-"} -{" "}
                                 {trend?.unit ?? "employment"}
                               </p>
                             </div>
