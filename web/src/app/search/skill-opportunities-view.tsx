@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 import { OpportunityDashboard } from "./opportunity-dashboard";
@@ -23,6 +24,41 @@ type SkillOpportunitiesViewProps = {
   surveyData: SurveyData;
 };
 
+type IscoTrendPoint = {
+  year: number;
+  value: number;
+};
+
+type IscoTrendResponse = {
+  error?: string;
+  suggestions?: string[];
+  location?: string;
+  sex?: string;
+  ageGroup?: string;
+  majorGroup?: string;
+  unit?: string;
+  points?: IscoTrendPoint[];
+  latest?: IscoTrendPoint;
+  latestChange?: {
+    absolute: number;
+    percent: number | null;
+  } | null;
+  periodChange?: {
+    absolute: number;
+    percent: number;
+  } | null;
+  direction?: string;
+};
+
+type IscoTrendLookup = {
+  majorCode: string;
+  path: SkillProfile["occupation_paths"][number];
+  status: "loading" | "ready" | "error";
+  trend?: IscoTrendResponse;
+  error?: string;
+  suggestions?: string[];
+};
+
 function externalHref(value: string) {
   return value.startsWith("http://") || value.startsWith("https://")
     ? value
@@ -38,6 +74,26 @@ function iscoMajorCodeForPath(path: SkillProfile["occupation_paths"][number]) {
   return match?.[1] ?? null;
 }
 
+function formatTrendValue(value: number | undefined) {
+  return typeof value === "number"
+    ? value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+    : "-";
+}
+
+function formatTrendPercent(value: number | null | undefined) {
+  if (typeof value !== "number") return "-";
+
+  return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
+}
+
+function formatTrendDelta(value: number | undefined) {
+  if (typeof value !== "number") return "-";
+
+  return `${value > 0 ? "+" : ""}${value.toLocaleString(undefined, {
+    maximumFractionDigits: 1,
+  })}`;
+}
+
 export function SkillOpportunitiesView({
   currentProfile,
   selectedOpportunityConfig,
@@ -49,6 +105,89 @@ export function SkillOpportunitiesView({
     (skill) => skillDecisions[skill.concept_uri] !== "declined",
   );
   const topJobs = currentProfile.occupation_paths;
+  const trendSex = "Male";
+  const trendLocation = surveyData.location.trim();
+  const topTrendJobs = useMemo(
+    () =>
+      topJobs
+        .slice(0, 3)
+        .map((path) => ({
+          path,
+          majorCode: iscoMajorCodeForPath(path),
+        }))
+        .filter(
+          (item): item is {
+            path: SkillProfile["occupation_paths"][number];
+            majorCode: string;
+          } => Boolean(item.majorCode),
+        ),
+    [topJobs],
+  );
+  const [trendLookups, setTrendLookups] = useState<IscoTrendLookup[]>([]);
+
+  useEffect(() => {
+    if (!trendLocation || topTrendJobs.length === 0) {
+      setTrendLookups([]);
+      return;
+    }
+
+    let isCurrent = true;
+    setTrendLookups(
+      topTrendJobs.map(({ path, majorCode }) => ({
+        path,
+        majorCode,
+        status: "loading",
+      })),
+    );
+
+    void Promise.all(
+      topTrendJobs.map(async ({ path, majorCode }) => {
+        try {
+          const response = await fetch("/api/isco-trend", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: trendLocation,
+              sex: trendSex,
+              majorCode,
+            }),
+          });
+          const payload = (await response.json()) as IscoTrendResponse;
+
+          if (!response.ok || payload.error) {
+            return {
+              path,
+              majorCode,
+              status: "error" as const,
+              error: payload.error || "Trend lookup failed.",
+              suggestions: payload.suggestions,
+            };
+          }
+
+          return {
+            path,
+            majorCode,
+            status: "ready" as const,
+            trend: payload,
+          };
+        } catch (error) {
+          return {
+            path,
+            majorCode,
+            status: "error" as const,
+            error:
+              error instanceof Error ? error.message : "Trend lookup failed.",
+          };
+        }
+      }),
+    ).then((lookups) => {
+      if (isCurrent) setTrendLookups(lookups);
+    });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [topTrendJobs, trendLocation]);
 
   return (
     <section className="grid gap-5">
@@ -255,8 +394,120 @@ export function SkillOpportunitiesView({
 
           <details className="rounded-md border border-zinc-300 bg-white shadow-sm">
             <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-950">
-              Step 2:
+              Step 2: ISCO employment trend analysis
             </summary>
+            {!trendLocation ? (
+              <div className="border-t border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500">
+                No location is available for the trend lookup.
+              </div>
+            ) : topTrendJobs.length === 0 ? (
+              <div className="border-t border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500">
+                No ISCO-08 major codes are available for the top opportunity
+                matches.
+              </div>
+            ) : (
+              <div className="grid gap-3 border-t border-zinc-200 px-4 py-4">
+                <div className="rounded border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-950">
+                  Location: {trendLocation} · Sex: {trendSex} · Top{" "}
+                  {topTrendJobs.length} Step 1 matches
+                </div>
+                <div className="grid gap-3">
+                  {trendLookups.map((lookup, index) => {
+                    const trend = lookup.trend;
+
+                    return (
+                      <article
+                        key={`${lookup.path.occupation_uri}-${lookup.majorCode}`}
+                        className="rounded-md border border-zinc-200 bg-white p-3"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                              Match {index + 1} · ISCO-08 major code{" "}
+                              {lookup.majorCode}
+                            </p>
+                            <h4 className="mt-1 font-semibold text-zinc-950">
+                              {lookup.path.preferred_label}
+                            </h4>
+                            {trend?.majorGroup ? (
+                              <p className="mt-1 text-sm text-zinc-600">
+                                {trend.majorGroup}
+                              </p>
+                            ) : null}
+                          </div>
+                          <span className="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-semibold capitalize text-zinc-700">
+                            {lookup.status === "ready"
+                              ? trend?.direction || "trend ready"
+                              : lookup.status}
+                          </span>
+                        </div>
+
+                        {lookup.status === "loading" ? (
+                          <p className="mt-3 text-sm text-zinc-500">
+                            Checking employment trend data.
+                          </p>
+                        ) : lookup.status === "error" ? (
+                          <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                            <p>{lookup.error}</p>
+                            {lookup.suggestions?.length ? (
+                              <p className="mt-1">
+                                Possible locations:{" "}
+                                {lookup.suggestions.join(", ")}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="mt-3 grid gap-3 md:grid-cols-3">
+                            <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
+                              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                                Latest
+                              </p>
+                              <p className="mt-1 text-xl font-semibold text-cyan-800">
+                                {formatTrendValue(trend?.latest?.value)}
+                              </p>
+                              <p className="text-xs text-zinc-500">
+                                {trend?.latest?.year ?? "-"} ·{" "}
+                                {trend?.unit ?? "employment"}
+                              </p>
+                            </div>
+                            <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
+                              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                                Latest change
+                              </p>
+                              <p className="mt-1 text-xl font-semibold text-cyan-800">
+                                {formatTrendPercent(
+                                  trend?.latestChange?.percent,
+                                )}
+                              </p>
+                              <p className="text-xs text-zinc-500">
+                                {formatTrendDelta(
+                                  trend?.latestChange?.absolute,
+                                )}{" "}
+                                vs. previous year
+                              </p>
+                            </div>
+                            <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2">
+                              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                                Full-period change
+                              </p>
+                              <p className="mt-1 text-xl font-semibold text-cyan-800">
+                                {formatTrendPercent(
+                                  trend?.periodChange?.percent,
+                                )}
+                              </p>
+                              <p className="text-xs text-zinc-500">
+                                {trend?.points?.[0]?.year ?? "-"}-
+                                {trend?.latest?.year ?? "-"}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </details>
         </section>
       </details>

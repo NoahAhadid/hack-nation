@@ -301,6 +301,7 @@ export function SearchClient({
     ]);
 
     if (cachedProfile) {
+      writeCachedProfile(AMARA_DEMO_CACHE_KEY, cachedProfile.profile);
       setProfile(cachedProfile.profile);
       setCalculationStage("done");
       setViewPhase("results");

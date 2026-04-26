@@ -197,6 +197,30 @@ export function clampFivePointScale(value: number) {
   return Math.min(Math.max(Math.round(value), 1), 5);
 }
 
+export function isco08MajorCode(iscoGroup: string | null | undefined) {
+  const match = iscoGroup?.trim().match(/^\D*(\d)/);
+
+  return match?.[1] ?? null;
+}
+
+export function profileWithIsco08MajorCodes(profile: SkillProfile) {
+  return {
+    ...profile,
+    occupation_paths: profile.occupation_paths.map((path) => {
+      if (path.isco_08_major_code) return path;
+
+      const majorCode = isco08MajorCode(path.iscoGroup ?? path.isco_group);
+
+      return majorCode
+        ? {
+            ...path,
+            isco_08_major_code: majorCode,
+          }
+        : path;
+    }),
+  };
+}
+
 export function readCachedProfile(cacheKey: string) {
   try {
     const cachedValue = window.localStorage.getItem(cacheKey);
@@ -205,7 +229,10 @@ export function readCachedProfile(cacheKey: string) {
     const cachedProfile = JSON.parse(cachedValue) as CachedProfile;
     if (!cachedProfile.profile?.export_metadata) return null;
 
-    return cachedProfile;
+    return {
+      ...cachedProfile,
+      profile: profileWithIsco08MajorCodes(cachedProfile.profile),
+    };
   } catch {
     return null;
   }
@@ -214,7 +241,7 @@ export function readCachedProfile(cacheKey: string) {
 export function writeCachedProfile(cacheKey: string, profile: SkillProfile) {
   try {
     const cachedProfile: CachedProfile = {
-      profile,
+      profile: profileWithIsco08MajorCodes(profile),
       cached_at: new Date().toISOString(),
     };
 
