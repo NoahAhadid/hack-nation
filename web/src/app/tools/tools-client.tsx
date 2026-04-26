@@ -66,7 +66,71 @@ type OccupationResponse = {
   occupations?: OccupationMatch[];
 };
 
+type IscoTrendPoint = {
+  year: number;
+  value: number;
+};
+
+type IscoTrendResponse = {
+  error?: string;
+  suggestions?: string[];
+  location?: string;
+  sex?: string;
+  ageGroup?: string;
+  majorGroup?: string;
+  unit?: string;
+  source?: {
+    indicator: string;
+    source: string;
+    note: string;
+    file: string;
+  };
+  points?: IscoTrendPoint[];
+  latest?: IscoTrendPoint;
+  latestChange?: {
+    absolute: number;
+    percent: number | null;
+  } | null;
+  periodChange?: {
+    absolute: number;
+    percent: number;
+  } | null;
+  direction?: string;
+};
+
 const initialQuery = "coordinate a team and communicate with customers";
+const iscoMajorOptions = [
+  ["0", "0 - Armed forces occupations"],
+  ["1", "1 - Managers"],
+  ["2", "2 - Professionals"],
+  ["3", "3 - Technicians and associate professionals"],
+  ["4", "4 - Clerical support workers"],
+  ["5", "5 - Service and sales workers"],
+  ["6", "6 - Skilled agricultural, forestry and fishery workers"],
+  ["7", "7 - Craft and related trades workers"],
+  ["8", "8 - Plant and machine operators, and assemblers"],
+  ["9", "9 - Elementary occupations"],
+] as const;
+
+function formatTrendValue(value: number | undefined) {
+  return typeof value === "number"
+    ? value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+    : "-";
+}
+
+function formatTrendPercent(value: number | null | undefined) {
+  if (typeof value !== "number") return "-";
+
+  return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
+}
+
+function formatTrendDelta(value: number | undefined) {
+  if (typeof value !== "number") return "-";
+
+  return `${value > 0 ? "+" : ""}${value.toLocaleString(undefined, {
+    maximumFractionDigits: 1,
+  })}`;
+}
 
 export function ToolsClient() {
   const [query, setQuery] = useState(initialQuery);
@@ -78,9 +142,14 @@ export function ToolsClient() {
     SkillSuggestion[]
   >([]);
   const [occupations, setOccupations] = useState<OccupationMatch[]>([]);
+  const [iscoLocation, setIscoLocation] = useState("Ghana");
+  const [iscoSex, setIscoSex] = useState("Total");
+  const [iscoMajorCode, setIscoMajorCode] = useState("5");
+  const [iscoTrend, setIscoTrend] = useState<IscoTrendResponse | null>(null);
   const [error, setError] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [isFindingOccupations, setIsFindingOccupations] = useState(false);
+  const [isLoadingIscoTrend, setIsLoadingIscoTrend] = useState(false);
 
   const highestSimilarity = useMemo(() => {
     return results.length > 0 ? results[0].similarity : null;
@@ -159,6 +228,46 @@ export function ToolsClient() {
     void findOccupations();
   }
 
+  async function findIscoTrend(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    setError("");
+    setIsLoadingIscoTrend(true);
+
+    try {
+      const response = await fetch("/api/isco-trend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: iscoLocation,
+          sex: iscoSex,
+          majorCode: iscoMajorCode,
+        }),
+      });
+      const payload = (await response.json()) as IscoTrendResponse;
+
+      if (!response.ok || payload.error) {
+        const suggestions = payload.suggestions?.length
+          ? ` Try: ${payload.suggestions.join(", ")}.`
+          : "";
+
+        throw new Error(
+          `${payload.error || "ISCO trend lookup failed."}${suggestions}`,
+        );
+      }
+
+      setIscoTrend(payload);
+    } catch (trendError) {
+      setIscoTrend(null);
+      setError(
+        trendError instanceof Error
+          ? trendError.message
+          : "ISCO trend lookup failed.",
+      );
+    } finally {
+      setIsLoadingIscoTrend(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#f7f8f5] text-stone-950">
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
@@ -172,7 +281,7 @@ export function ToolsClient() {
             </h1>
             <p className="max-w-3xl text-sm leading-6 text-stone-600">
               Use these utilities to inspect semantic ESCO skill matches and
-              lookup occupations for an exact ESCO skill label.
+              lookup occupations, skills, and ISCO labor-market trends.
             </p>
           </div>
           <nav className="rounded-md border border-stone-300 bg-white px-4 py-3 shadow-sm">
@@ -453,6 +562,200 @@ export function ToolsClient() {
               </ol>
             )}
           </div>
+        </section>
+
+        <section className="rounded-md border border-stone-300 bg-white shadow-sm">
+          <div className="border-b border-stone-200 px-4 py-3">
+            <h2 className="text-base font-semibold text-stone-950">
+              ISCO employment trend
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-stone-600">
+              Uses the cleaned ILO occupation CSV. The trend is filtered to age
+              group 15+ and shown in thousands of employed people.
+            </p>
+          </div>
+
+          <form
+            onSubmit={findIscoTrend}
+            className="grid gap-3 border-b border-stone-200 p-3 lg:grid-cols-[minmax(0,1fr)_10rem_minmax(0,1.4fr)_auto] lg:items-end"
+          >
+            <label className="grid gap-1.5">
+              <span className="text-sm font-medium text-stone-700">
+                Location
+              </span>
+              <input
+                value={iscoLocation}
+                onChange={(event) => setIscoLocation(event.target.value)}
+                placeholder="Ghana"
+                className="h-11 rounded-md border border-stone-300 bg-white px-3 text-base outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15"
+              />
+            </label>
+
+            <label className="grid gap-1.5">
+              <span className="text-sm font-medium text-stone-700">Sex</span>
+              <select
+                value={iscoSex}
+                onChange={(event) => setIscoSex(event.target.value)}
+                className="h-11 rounded-md border border-stone-300 bg-white px-3 text-base outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15"
+              >
+                <option value="Total">Total</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </label>
+
+            <label className="grid gap-1.5">
+              <span className="text-sm font-medium text-stone-700">
+                ISCO-08 major code
+              </span>
+              <select
+                value={iscoMajorCode}
+                onChange={(event) => setIscoMajorCode(event.target.value)}
+                className="h-11 rounded-md border border-stone-300 bg-white px-3 text-base outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15"
+              >
+                {iscoMajorOptions.map(([code, label]) => (
+                  <option key={code} value={code}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <Button
+              type="submit"
+              className="h-11 rounded-md bg-stone-950 px-5 text-white hover:bg-teal-800"
+              disabled={isLoadingIscoTrend}
+            >
+              {isLoadingIscoTrend ? "Loading" : "Show trend"}
+            </Button>
+          </form>
+
+          {!iscoTrend ? (
+            <div className="px-4 py-10 text-center text-sm text-stone-500">
+              Enter a location, sex, and ISCO major group to see the trend.
+            </div>
+          ) : (
+            <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="grid gap-4">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-md border border-stone-200 bg-stone-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+                      Latest
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-teal-800">
+                      {formatTrendValue(iscoTrend.latest?.value)}
+                    </p>
+                    <p className="text-xs text-stone-500">
+                      {iscoTrend.latest?.year} · {iscoTrend.unit}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-stone-200 bg-stone-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+                      Latest change
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-teal-800">
+                      {formatTrendPercent(iscoTrend.latestChange?.percent)}
+                    </p>
+                    <p className="text-xs text-stone-500">
+                      {formatTrendDelta(iscoTrend.latestChange?.absolute)} vs.
+                      previous year
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-stone-200 bg-stone-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+                      Direction
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold capitalize text-teal-800">
+                      {iscoTrend.direction}
+                    </p>
+                    <p className="text-xs text-stone-500">
+                      {iscoTrend.points?.[0]?.year}-{iscoTrend.latest?.year}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-stone-200">
+                  <div className="border-b border-stone-200 px-3 py-2">
+                    <h3 className="text-sm font-semibold text-stone-950">
+                      {iscoTrend.majorGroup}
+                    </h3>
+                    <p className="mt-1 text-xs text-stone-500">
+                      {iscoTrend.location} · {iscoTrend.sex} ·{" "}
+                      {iscoTrend.ageGroup}
+                    </p>
+                  </div>
+                  <div className="max-h-72 overflow-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="sticky top-0 bg-stone-950 text-xs uppercase tracking-[0.12em] text-white">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold">Year</th>
+                          <th className="px-3 py-2 font-semibold">Value</th>
+                          <th className="px-3 py-2 font-semibold">Bar</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-200">
+                        {(iscoTrend.points ?? []).map((point) => {
+                          const maxValue = Math.max(
+                            ...(iscoTrend.points ?? []).map((item) => item.value),
+                          );
+                          const width =
+                            maxValue > 0
+                              ? Math.max((point.value / maxValue) * 100, 3)
+                              : 0;
+
+                          return (
+                            <tr key={point.year}>
+                              <td className="px-3 py-2 font-medium text-stone-950">
+                                {point.year}
+                              </td>
+                              <td className="px-3 py-2 text-stone-700">
+                                {formatTrendValue(point.value)}
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="h-2 rounded-full bg-stone-200">
+                                  <div
+                                    className="h-full rounded-full bg-teal-700"
+                                    style={{ width: `${width}%` }}
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <aside className="rounded-md border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+                  Source
+                </p>
+                <p className="mt-2 font-semibold text-stone-950">
+                  {iscoTrend.source?.source || "ILO occupation CSV"}
+                </p>
+                <p className="mt-2 leading-6">{iscoTrend.source?.indicator}</p>
+                <p className="mt-2 break-words text-xs leading-5 text-stone-500">
+                  {iscoTrend.source?.note}
+                </p>
+                {iscoTrend.periodChange ? (
+                  <div className="mt-3 border-t border-stone-200 pt-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+                      Full-period change
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-teal-800">
+                      {formatTrendPercent(iscoTrend.periodChange.percent)}
+                    </p>
+                    <p className="text-xs text-stone-500">
+                      {formatTrendDelta(iscoTrend.periodChange.absolute)} over
+                      available history
+                    </p>
+                  </div>
+                ) : null}
+              </aside>
+            </div>
+          )}
         </section>
       </main>
     </div>
