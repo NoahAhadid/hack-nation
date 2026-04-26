@@ -4,14 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 import { OpportunityDashboard } from "./opportunity-dashboard";
-import { signalWeightLabels } from "./data";
 import { identifiedSkillsForProfile } from "./profile-view-utils";
 import type {
   OpportunityFinalConsiderations,
   OpportunityProtocolConfig,
   SkillDecision,
   SkillProfile,
-  SignalWeightKey,
   SurveyData,
 } from "./types";
 import {
@@ -19,7 +17,6 @@ import {
   formatCoveragePercent,
   formatCoverageValue,
   formatScoreValue,
-  sourceLabelFor,
 } from "./utils";
 
 type SkillOpportunitiesViewProps = {
@@ -272,14 +269,6 @@ export function SkillOpportunitiesView({
       isCurrent = false;
     };
   }, [topTrendJobs, trendLocation, trendLookupKey, trendSex]);
-  const visibleSignals = useMemo(
-    () =>
-      selectedOpportunityConfig.econometricSignals.filter(
-        (signal) => signal.userVisible,
-      ),
-    [selectedOpportunityConfig],
-  );
-
   useEffect(() => {
     let isCurrent = true;
     const resetFinalConsiderations = () => {
@@ -578,136 +567,6 @@ export function SkillOpportunitiesView({
             <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-zinc-950">
               Step 2: local route scoring and ISCO trend analysis
             </summary>
-            <div className="grid gap-4 border-t border-zinc-200 px-4 py-4">
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                    Local route scoring trace
-                  </p>
-                  <h4 className="mt-1 font-semibold text-zinc-950">
-                    {selectedOpportunityConfig.contextName}
-                  </h4>
-                  <p className="mt-2 text-sm leading-6 text-zinc-700">
-                    Local opportunity records are ranked by matching accepted
-                    skill evidence against route keywords, then combining local
-                    demand, wage, growth, automation resilience, and training
-                    access weights.
-                  </p>
-                </div>
-                <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                    Profile signals used
-                  </p>
-                  <p className="mt-2 text-2xl font-semibold text-cyan-800">
-                    {acceptedSkills.length}
-                  </p>
-                  <p className="text-xs text-zinc-500">accepted ESCO skills</p>
-                </div>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {(Object.keys(signalWeightLabels) as SignalWeightKey[]).map(
-                  (field) => (
-                    <div
-                      key={field}
-                      className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium text-zinc-700">
-                          {signalWeightLabels[field]}
-                        </p>
-                        <p className="font-semibold text-zinc-950">
-                          {selectedOpportunityConfig.signalWeights[field]}%
-                        </p>
-                      </div>
-                    </div>
-                  ),
-                )}
-              </div>
-
-              <div className="grid gap-3 lg:grid-cols-3">
-                {visibleSignals.map((signal) => (
-                  <article
-                    key={signal.id}
-                    className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
-                  >
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                      {signal.category}
-                    </p>
-                    <h4 className="mt-1 text-sm font-semibold text-zinc-950">
-                      {signal.label}
-                    </h4>
-                    <p className="mt-2 text-sm leading-6 text-zinc-700">
-                      {signal.interpretation}
-                    </p>
-                    <p className="mt-2 border-t border-zinc-200 pt-2 text-xs text-zinc-500">
-                      Source:{" "}
-                      {sourceLabelFor(
-                        selectedOpportunityConfig,
-                        signal.sourceId,
-                      )}
-                    </p>
-                  </article>
-                ))}
-              </div>
-
-              {localMatches.length === 0 ? (
-                <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
-                  No local opportunity records are configured for this protocol.
-                </div>
-              ) : (
-                <ol className="divide-y divide-zinc-200 rounded-md border border-zinc-200">
-                  {localMatches.map((match, index) => (
-                    <li
-                      key={match.id}
-                      className="grid gap-3 px-4 py-4 lg:grid-cols-[3rem_minmax(0,1fr)_12rem]"
-                    >
-                      <p className="text-2xl font-semibold text-cyan-800">
-                        {index + 1}
-                      </p>
-                      <div>
-                        <h4 className="font-semibold text-zinc-950">
-                          {match.title}
-                        </h4>
-                        <p className="mt-1 text-sm text-zinc-600">
-                          {match.sector} - {match.opportunityType}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {match.matchedKeywords.length > 0 ? (
-                            match.matchedKeywords.map((keyword) => (
-                              <span
-                                key={`${match.id}-${keyword}`}
-                                className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-950"
-                              >
-                                {keyword}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-950">
-                              No direct keyword match
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-3 text-sm leading-6 text-zinc-700">
-                          Training path: {match.trainingPathway}
-                        </p>
-                      </div>
-                      <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                          Local score
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold text-cyan-800">
-                          {Math.round(match.score * 100)}%
-                        </p>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          ISCO {match.iscoGroup}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </div>
             {!trendLocation ? (
               <div className="border-t border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500">
                 No location is available for the trend lookup.

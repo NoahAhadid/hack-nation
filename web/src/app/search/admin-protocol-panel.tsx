@@ -1,6 +1,14 @@
 "use client";
 
-import { Hash, Plus, Table2 } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronUp, Hash, Plus, Table2, X, Check } from "lucide-react";
+
+type CsvConfiguration = {
+  fileName: string;
+  iscoColumn: string;
+  selectedFeatures: string[];
+  prompt: string;
+};
 
 type AdminProtocolPanelProps = {
   adminCsvColumns: string[];
@@ -111,6 +119,62 @@ export function AdminProtocolPanel({
   onPreviewCsvColumns,
   onSelectIscoColumn,
 }: AdminProtocolPanelProps) {
+  const [isIscoGroupsExpanded, setIsIscoGroupsExpanded] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [tempIscoColumn, setTempIscoColumn] = useState("");
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [tempFile, setTempFile] = useState<File | undefined>();
+  const [tempColumns, setTempColumns] = useState<string[]>([]);
+  const [tempPrompt, setTempPrompt] = useState("");
+  const [csvConfigurations, setCsvConfigurations] = useState<CsvConfiguration[]>([]);
+
+  const handleFileSelect = async (file: File | undefined) => {
+    if (!file) return;
+    
+    // Read CSV header to get column names
+    const text = await file.text();
+    const lines = text.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    
+    setTempFile(file);
+    setTempColumns(headers);
+    setTempIscoColumn(headers[0] || "");
+    setSelectedFeatures([]);
+    setTempPrompt("");
+    setIsModalOpen(true);
+  };
+
+  const handleConfirmConfiguration = () => {
+    if (tempFile) {
+      const newConfig: CsvConfiguration = {
+        fileName: tempFile.name,
+        iscoColumn: tempIscoColumn,
+        selectedFeatures: selectedFeatures,
+        prompt: tempPrompt,
+      };
+      setCsvConfigurations(prev => [...prev, newConfig]);
+      
+      // Keep old behavior for compatibility
+      onPreviewCsvColumns(tempFile);
+      onSelectIscoColumn(tempIscoColumn);
+      
+      console.log("CSV Configuration:", newConfig);
+    }
+    setIsModalOpen(false);
+  };
+
+  const removeConfiguration = (index: number) => {
+    setCsvConfigurations(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleFeature = (column: string) => {
+    setSelectedFeatures(prev =>
+      prev.includes(column)
+        ? prev.filter(f => f !== column)
+        : [...prev, column]
+    );
+  };
+
   return (
     <section className="grid gap-5">
       <section className="overflow-hidden rounded-md border border-zinc-300 bg-white shadow-sm">
@@ -119,7 +183,7 @@ export function AdminProtocolPanel({
             Admin setup
           </p>
           <h2 className="mt-2 text-3xl font-semibold tracking-normal text-zinc-950">
-            Every dataset connects through ISCO.
+            Data Lake Management
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-600">
             Partners upload CSVs with an `isco_code` column. The dashboard
@@ -158,49 +222,54 @@ export function AdminProtocolPanel({
               Primary key
             </p>
             <h3 className="mt-2 font-mono text-5xl font-semibold">ISCO</h3>
-            <p className="mt-3 text-sm leading-6 text-zinc-300">
-              Use the first digit of `isco_code` to aggregate all local
-              opportunity evidence into one dashboard spine.
-            </p>
-            <p className="mt-4 rounded border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 font-mono text-sm text-cyan-50">
-              7422 -&gt; 7
-            </p>
           </div>
         </div>
       </section>
 
       <section className="rounded-md border border-zinc-300 bg-white shadow-sm">
-        <div className="border-b border-zinc-200 px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
-            ISCO first digit
-          </p>
-          <h3 className="mt-1 text-xl font-semibold text-zinc-950">
-            What the major group means
-          </h3>
-        </div>
-        <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-5">
-          {iscoMajorGroups.map((group) => (
-            <article
-              key={group.code}
-              className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <p className="grid h-10 w-10 place-items-center rounded-md bg-zinc-950 font-mono text-xl font-semibold text-white">
-                  {group.code}
+        <button
+          onClick={() => setIsIscoGroupsExpanded(!isIscoGroupsExpanded)}
+          className="flex w-full items-center justify-between border-b border-zinc-200 px-4 py-3 text-left transition hover:bg-zinc-50"
+        >
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
+              ISCO Directory
+            </p>
+            <h3 className="mt-1 text-xl font-semibold text-zinc-950">
+              Learn about the 10 ISCO Groups
+            </h3>
+          </div>
+          {isIscoGroupsExpanded ? (
+            <ChevronUp className="size-5 text-zinc-400" />
+          ) : (
+            <ChevronDown className="size-5 text-zinc-400" />
+          )}
+        </button>
+        {isIscoGroupsExpanded && (
+          <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-5">
+            {iscoMajorGroups.map((group) => (
+              <article
+                key={group.code}
+                className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="grid h-10 w-10 place-items-center rounded-md bg-zinc-950 font-mono text-xl font-semibold text-white">
+                    {group.code}
+                  </p>
+                  <span className="rounded bg-white px-2 py-1 text-xs font-semibold text-zinc-600">
+                    ISCO-{group.code}
+                  </span>
+                </div>
+                <h4 className="mt-3 text-sm font-semibold text-zinc-950">
+                  {group.title}
+                </h4>
+                <p className="mt-1 text-xs leading-5 text-zinc-600">
+                  {group.example}
                 </p>
-                <span className="rounded bg-white px-2 py-1 text-xs font-semibold text-zinc-600">
-                  ISCO-{group.code}
-                </span>
-              </div>
-              <h4 className="mt-3 text-sm font-semibold text-zinc-950">
-                {group.title}
-              </h4>
-              <p className="mt-1 text-xs leading-5 text-zinc-600">
-                {group.example}
-              </p>
-            </article>
-          ))}
-        </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="rounded-md border border-zinc-300 bg-white shadow-sm">
@@ -210,12 +279,10 @@ export function AdminProtocolPanel({
               CSV intake UI
             </p>
             <h3 className="mt-1 text-xl font-semibold text-zinc-950">
-              Upload one CSV and select the ISCO column
+              Upload CSVs and configure data sources
             </h3>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
-              The UI reads only the header row to show column names. The admin
-              chooses which column contains the ISCO first-digit code; no row
-              data is imported, stored, or aggregated.
+              Upload multiple CSV files, select the ISCO column, choose feature columns for recommendations, and add custom prompts for each data source.
             </p>
           </div>
           <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-zinc-950 px-4 text-sm font-medium text-white transition hover:bg-cyan-800">
@@ -225,112 +292,79 @@ export function AdminProtocolPanel({
               type="file"
               accept=".csv,text/csv"
               className="sr-only"
-              onChange={(event) => onPreviewCsvColumns(event.target.files?.[0])}
+              onChange={(event) => handleFileSelect(event.target.files?.[0])}
             />
           </label>
         </div>
 
-        <div className="grid gap-4 p-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
-          <aside className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-              Uploaded file
-            </p>
-            <h4 className="mt-2 break-all font-mono text-sm font-semibold text-zinc-950">
-              {adminCsvFileName || "No CSV selected"}
-            </h4>
-            <div className="mt-3 rounded-md border border-dashed border-zinc-300 bg-white px-3 py-6 text-center">
-              <Table2 className="mx-auto size-6 text-cyan-700" />
-              <p className="mt-2 text-sm font-semibold text-zinc-950">
-                Header preview only
-              </p>
-              <p className="mt-1 text-xs leading-5 text-zinc-500">
-                SkillRoute reads column names from the first non-empty row.
-              </p>
-            </div>
-            <label className="mt-3 grid gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                ISCO 1 code column
-              </span>
-              <select
-                value={adminIscoColumn}
-                onChange={(event) => onSelectIscoColumn(event.target.value)}
-                disabled={adminCsvColumns.length === 0}
-                className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-700/15 disabled:bg-zinc-100 disabled:text-zinc-400"
-              >
-                {adminCsvColumns.length === 0 ? (
-                  <option value="">Upload a CSV first</option>
-                ) : (
-                  adminCsvColumns.map((column) => (
-                    <option key={column} value={column}>
-                      {column}
-                    </option>
-                  ))
-                )}
-              </select>
-            </label>
-          </aside>
-
-          <section className="rounded-md border border-zinc-200 bg-white">
-            <div className="border-b border-zinc-200 px-3 py-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-700">
-                CSV columns
-              </p>
-              <h4 className="mt-1 font-semibold text-zinc-950">
-                ISCO column is pinned first
-              </h4>
-            </div>
-            {adminCsvColumns.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-zinc-500">
-                Upload a CSV to preview its column names.
-              </div>
-            ) : (
-              <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
-                {[
-                  adminIscoColumn,
-                  ...adminCsvColumns.filter(
-                    (column) => column !== adminIscoColumn,
-                  ),
-                ]
-                  .filter(Boolean)
-                  .map((column, index) => {
-                    const isIscoColumn = column === adminIscoColumn;
-
-                    return (
-                      <div
-                        key={`${column}-${index}`}
-                        className={`rounded-md border px-3 py-2 ${
-                          isIscoColumn
-                            ? "border-cyan-400 bg-cyan-50 text-cyan-950"
-                            : "border-zinc-200 bg-zinc-50 text-zinc-700"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="break-all font-mono text-sm font-semibold">
-                            {column}
-                          </span>
-                          {isIscoColumn ? (
-                            <span className="shrink-0 rounded bg-cyan-800 px-2 py-0.5 text-xs font-semibold text-white">
-                              ISCO
+        {csvConfigurations.length === 0 ? (
+          <div className="px-4 py-10 text-center text-sm text-zinc-500">
+            No CSV files configured yet. Upload a CSV to get started.
+          </div>
+        ) : (
+          <div className="grid gap-4 p-4">
+            {csvConfigurations.map((config, index) => (
+              <div key={index} className="rounded-md border border-zinc-200 bg-white">
+                <div className="border-b border-zinc-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-700">
+                        Data source {index + 1}
+                      </p>
+                      <h4 className="mt-1 break-all font-mono text-sm font-semibold text-zinc-950">
+                        {config.fileName}
+                      </h4>
+                      {config.prompt && (
+                        <p className="mt-2 text-sm leading-6 text-zinc-600">
+                          <span className="font-semibold">Prompt:</span> {config.prompt}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => removeConfiguration(index)}
+                      className="rounded-md p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-red-600"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                      ISCO Column:
+                    </span>
+                    <span className="rounded bg-cyan-800 px-2 py-1 font-mono text-xs font-semibold text-white">
+                      {config.iscoColumn}
+                    </span>
+                  </div>
+                  {config.selectedFeatures.length > 0 ? (
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                        Selected Features ({config.selectedFeatures.length})
+                      </p>
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {config.selectedFeatures.map((feature) => (
+                          <div
+                            key={feature}
+                            className="rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2"
+                          >
+                            <span className="break-all font-mono text-sm font-semibold text-cyan-950">
+                              {feature}
                             </span>
-                          ) : (
-                            <span className="shrink-0 rounded bg-white px-2 py-0.5 text-xs font-semibold text-zinc-500">
-                              {index + 1}
-                            </span>
-                          )}
-                        </div>
-                        {isIscoColumn ? (
-                          <p className="mt-2 text-xs leading-5">
-                            This column will be displayed first and used as the
-                            ISCO first-digit key later.
-                          </p>
-                        ) : null}
+                          </div>
+                        ))}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-zinc-500">
+                      No feature columns selected for recommendations
+                    </p>
+                  )}
+                </div>
               </div>
-            )}
-          </section>
-        </div>
+            ))}
+          </div>
+        )}
 
         {protocolStatus ? (
           <p className="border-t border-zinc-200 px-4 py-3 text-sm text-zinc-600">
@@ -338,6 +372,156 @@ export function AdminProtocolPanel({
           </p>
         ) : null}
       </section>
+
+      {/* Configuration Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-3xl rounded-lg border border-zinc-300 bg-white shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-zinc-200 px-6 py-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
+                  CSV Configuration
+                </p>
+                <h3 className="mt-1 text-2xl font-semibold text-zinc-950">
+                  Configure Data Import
+                </h3>
+                <p className="mt-2 text-sm text-zinc-600">
+                  Select the ISCO column and choose which features to use for recommendations
+                </p>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-md p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="max-h-[70vh] overflow-y-auto p-6">
+              <div className="grid gap-6">
+                {/* ISCO Column Selection */}
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
+                  <label className="grid gap-2">
+                    <span className="text-sm font-semibold text-zinc-950">
+                      ISCO Column <span className="text-red-600">*</span>
+                    </span>
+                    <p className="text-xs leading-5 text-zinc-600">
+                      Select the column that contains the ISCO first-digit occupation code (0-9)
+                    </p>
+                    <select
+                      value={tempIscoColumn}
+                      onChange={(e) => setTempIscoColumn(e.target.value)}
+                      className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-700/15"
+                    >
+                      {tempColumns.map((column) => (
+                        <option key={column} value={column}>
+                          {column}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                {/* Feature Selection */}
+                <div className="rounded-md border border-zinc-200 bg-white p-4">
+                  <div className="mb-4">
+                    <h4 className="text-sm font-semibold text-zinc-950">
+                      Recommendation Features
+                    </h4>
+                    <p className="mt-1 text-xs leading-5 text-zinc-600">
+                      Select which data columns the system should use when making ISCO-based recommendations
+                    </p>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {tempColumns
+                      .filter((column) => column !== tempIscoColumn)
+                      .map((column) => {
+                        const isSelected = selectedFeatures.includes(column);
+                        return (
+                          <button
+                            key={column}
+                            onClick={() => toggleFeature(column)}
+                            className={`flex items-start gap-3 rounded-md border px-3 py-2.5 text-left transition ${
+                              isSelected
+                                ? "border-cyan-600 bg-cyan-50"
+                                : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50"
+                            }`}
+                          >
+                            <div
+                              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border ${
+                                isSelected
+                                  ? "border-cyan-600 bg-cyan-600"
+                                  : "border-zinc-300 bg-white"
+                              }`}
+                            >
+                              {isSelected && <Check className="size-3 text-white" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className={`break-all font-mono text-sm font-semibold ${
+                                  isSelected ? "text-cyan-950" : "text-zinc-950"
+                                }`}
+                              >
+                                {column}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                  </div>
+
+                  {selectedFeatures.length > 0 && (
+                    <div className="mt-4 rounded-md bg-cyan-50 px-3 py-2">
+                      <p className="text-xs font-semibold text-cyan-950">
+                        {selectedFeatures.length} feature{selectedFeatures.length !== 1 ? 's' : ''} selected
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Prompt Field */}
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
+                  <label className="grid gap-2">
+                    <span className="text-sm font-semibold text-zinc-950">
+                      Custom Prompt
+                    </span>
+                    <p className="text-xs leading-5 text-zinc-600">
+                      Add instructions or context to guide how this data should be used for ISCO recommendations
+                    </p>
+                    <textarea
+                      value={tempPrompt}
+                      onChange={(e) => setTempPrompt(e.target.value)}
+                      placeholder="e.g., Use this data to prioritize local job opportunities and consider wage trends..."
+                      rows={4}
+                      className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-700/15"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between gap-3 border-t border-zinc-200 px-6 py-4">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmConfiguration}
+                disabled={!tempIscoColumn}
+                className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-cyan-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+              >
+                Confirm Configuration
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

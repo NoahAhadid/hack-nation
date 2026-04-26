@@ -21,6 +21,7 @@ const iscoCsvPath = path.resolve(
 );
 
 const defaultAgeGroup = "Age (Youth, adults): 15+";
+const isco08MajorPattern = /^Occupation \(ISCO-08\): ([0-9])\. (.+?)\s*$/;
 
 let cachedRows: CsvRow[] | null = null;
 
@@ -168,12 +169,30 @@ function trendDirection(points: TrendPoint[]) {
   return fittedPeriodChangePercent > 0 ? "increasing" : "decreasing";
 }
 
+function majorCodeForRow(row: CsvRow) {
+  if (row.isco_08_major_code) return row.isco_08_major_code;
+
+  const occupation = row.Occupation || row["classif2.label"] || "";
+  const match = occupation.trim().match(isco08MajorPattern);
+
+  return match?.[1] ?? "";
+}
+
+function majorLabelForRow(row: CsvRow) {
+  if (row.isco_08_major_label) return row.isco_08_major_label;
+
+  const occupation = row.Occupation || row["classif2.label"] || "";
+  const match = occupation.trim().match(isco08MajorPattern);
+
+  return match?.[2] ?? "";
+}
+
 function formatMajorGroup(row: CsvRow | undefined, majorCode: string) {
   if (!row) return `${majorCode}. ISCO-08 major group`;
 
   return (
     row.isco_08_major_group ||
-    `${row.isco_08_major_code}. ${row.isco_08_major_label}`
+    `${majorCode}. ${majorLabelForRow(row) || "ISCO-08 major group"}`
   );
 }
 
@@ -233,7 +252,7 @@ export async function POST(request: Request) {
       row["ref_area.label"] === locationMatch.location &&
       row["sex.label"] === sex &&
       row["classif1.label"] === ageGroup &&
-      row.isco_08_major_code === majorCode,
+      majorCodeForRow(row) === majorCode,
   );
   const points = groupByYear(matchingRows);
 
