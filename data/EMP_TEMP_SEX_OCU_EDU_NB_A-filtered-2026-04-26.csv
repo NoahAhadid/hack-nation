@@ -1,1 +1,2 @@
-
+location,source.label,indicator.label,sex.label,ISCOCode,EducationLevel,time,obs_value,obs_status.label,note_classif.label,note_indicator.label,note_source.label
+Angola,LFS - Employment Survey,"Employment by sex, occupation and education (thousands)",Total,"Occupation (ISCO-08): Total","Education (Aggregate levels): Total",2025,13450.366,,,,Repository: ILO-STATIST[...]
